@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Tierlist - Registro de Juegos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tier: {
+                            s: '#ff7f7f',
+                            a: '#ffbf7f',
+                            b: '#ffdf7f',
+                            c: '#ffff7f',
+                            d: '#bfff7f',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .tier-badge { @apply px-2 py-1 rounded text-xs font-bold; }
+        .modal-backdrop { @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Configuración de la API - CAMBIAR ESTO -->
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/api';
+    </script>
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <h1 class="text-2xl font-bold">🎮 Game Tierlist</h1>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm">Usuario:</span>
+                    <select id="currentUser" class="bg-white text-gray-800 rounded px-3 py-2 text-sm">
+                        <option value="">Selecciona usuario...</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow">
+        <div class="container mx-auto px-4">
+            <div class="flex overflow-x-auto">
+                <button onclick="showSection('catalogo')" class="nav-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent hover:border-indigo-500" data-section="catalogo">📚 Catálogo</button>
+                <button onclick="showSection('mi-tierlist')" class="nav-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent hover:border-indigo-500" data-section="mi-tierlist">📝 Mi Tierlist</button>
+                <button onclick="showSection('explorar')" class="nav-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent hover:border-indigo-500" data-section="explorar">🔍 Explorar Tierlists</button>
+                <button onclick="showSection('comparar')" class="nav-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent hover:border-indigo-500" data-section="comparar">⚖️ Comparar</button>
+                <button onclick="showSection('usuarios')" class="nav-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent hover:border-indigo-500" data-section="usuarios">👥 Usuarios</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-6">
+        <!-- Sección: Catálogo de Juegos -->
+        <section id="section-catalogo" class="section hidden">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <h2 class="text-xl font-bold text-gray-800">Catálogo de Juegos</h2>
+                <button onclick="openAddGameModal()" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition">+ Añadir Juego</button>
+            </div>
+
+            <!-- Filtros del catálogo -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <input type="text" id="filterGameName" placeholder="Buscar por nombre..." class="border rounded px-3 py-2" onkeyup="filterCatalog()">
+                    <select id="filterGameCategory" class="border rounded px-3 py-2" onchange="filterCatalog()">
+                        <option value="">Todas las categorías</option>
+                    </select>
+                    <select id="filterGamePlatform" class="border rounded px-3 py-2" onchange="filterCatalog()">
+                        <option value="">Todas las plataformas</option>
+                        <option value="PC">PC</option>
+                        <option value="PlayStation">PlayStation</option>
+                        <option value="Xbox">Xbox</option>
+                        <option value="Nintendo Switch">Nintendo Switch</option>
+                        <option value="Móvil">Móvil</option>
+                    </select>
+                    <input type="number" id="filterGameYear" placeholder="Año lanzamiento" class="border rounded px-3 py-2" onkeyup="filterCatalog()">
+                </div>
+            </div>
+
+            <!-- Grid de juegos -->
+            <div id="gamesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <!-- Los juegos se cargarán aquí -->
+            </div>
+        </section>
+
+        <!-- Sección: Mi Tierlist -->
+        <section id="section-mi-tierlist" class="section hidden">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <h2 class="text-xl font-bold text-gray-800">Mi Tierlist</h2>
+                <div class="flex items-center gap-4">
+                    <select id="myTierlistYear" class="border rounded px-3 py-2" onchange="loadMyTierlist()">
+                        <option value="">Selecciona año...</option>
+                    </select>
+                    <button onclick="openCreateTierlistModal()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">+ Nueva Tierlist</button>
+                </div>
+            </div>
+
+            <div id="myTierlistEmpty" class="hidden text-center py-12 text-gray-500">
+                <p class="text-lg">No tienes ninguna tierlist para este año.</p>
+                <p class="text-sm mt-2">Crea una nueva tierlist o selecciona otro año.</p>
+            </div>
+
+            <!-- Visualización por tiers -->
+            <div id="myTierlistContent" class="space-y-4">
+                <!-- Tier S -->
+                <div class="bg-tier-s rounded-lg p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-2xl font-bold">S</span>
+                        <span class="text-sm text-gray-700">(Rating 10)</span>
+                    </div>
+                    <div id="tier-s-games" class="flex flex-wrap gap-2"></div>
+                </div>
+                <!-- Tier A -->
+                <div class="bg-tier-a rounded-lg p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-2xl font-bold">A</span>
+                        <span class="text-sm text-gray-700">(Rating 8-9)</span>
+                    </div>
+                    <div id="tier-a-games" class="flex flex-wrap gap-2"></div>
+                </div>
+                <!-- Tier B -->
+                <div class="bg-tier-b rounded-lg p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-2xl font-bold">B</span>
+                        <span class="text-sm text-gray-700">(Rating 6-7)</span>
+                    </div>
+                    <div id="tier-b-games" class="flex flex-wrap gap-2"></div>
+                </div>
+                <!-- Tier C -->
+                <div class="bg-tier-c rounded-lg p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-2xl font-bold">C</span>
+                        <span class="text-sm text-gray-700">(Rating 4-5)</span>
+                    </div>
+                    <div id="tier-c-games" class="flex flex-wrap gap-2"></div>
+                </div>
+                <!-- Tier D -->
+                <div class="bg-tier-d rounded-lg p-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-2xl font-bold">D</span>
+                        <span class="text-sm text-gray-700">(Rating 1-3)</span>
+                    </div>
+                    <div id="tier-d-games" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+
+            <!-- Botón para añadir juego a tierlist -->
+            <div id="addToTierlistSection" class="mt-6 hidden">
+                <button onclick="openAddToTierlistModal()" class="w-full md:w-auto bg-indigo-600 text-white px-6 py-3 rounded hover:bg-indigo-700 transition">+ Añadir Juego a Mi Tierlist</button>
+            </div>
+        </section>
+
+        <!-- Sección: Explorar Tierlists -->
+        <section id="section-explorar" class="section hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-6">Explorar Tierlists</h2>
+
+            <!-- Filtros -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <select id="exploreUser" class="border rounded px-3 py-2">
+                        <option value="">Todos los usuarios</option>
+                    </select>
+                    <select id="exploreYear" class="border rounded px-3 py-2">
+                        <option value="">Todos los años</option>
+                    </select>
+                    <select id="exploreCategory" class="border rounded px-3 py-2">
+                        <option value="">Todas las categorías</option>
+                    </select>
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="exploreRatingMin" placeholder="Rating mín" min="1" max="10" class="border rounded px-3 py-2 w-full">
+                        <span>-</span>
+                        <input type="number" id="exploreRatingMax" placeholder="Rating máx" min="1" max="10" class="border rounded px-3 py-2 w-full">
+                    </div>
+                    <button onclick="loadExploreEntries()" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Buscar</button>
+                </div>
+            </div>
+
+            <!-- Resultados -->
+            <div id="exploreResults" class="space-y-4">
+                <!-- Los resultados se cargarán aquí -->
+            </div>
+        </section>
+
+        <!-- Sección: Comparar -->
+        <section id="section-comparar" class="section hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-6">Comparar Tierlists</h2>
+
+            <!-- Selección de usuarios a comparar -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Usuarios a comparar</label>
+                        <select id="compareUsers" multiple class="border rounded px-3 py-2 w-full h-32">
+                            <!-- Usuarios se cargarán aquí -->
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Ctrl+click para seleccionar varios</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Año</label>
+                        <select id="compareYear" class="border rounded px-3 py-2 w-full">
+                            <option value="">Selecciona año...</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="loadComparison()" class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 w-full">Comparar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resultados de comparación -->
+            <div id="compareResults" class="space-y-6">
+                <!-- Juegos comunes -->
+                <div id="compareCommon" class="hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">🎯 Juegos en Común</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full bg-white rounded-lg shadow">
+                            <thead id="compareCommonHead" class="bg-gray-50">
+                                <!-- Headers dinámicos -->
+                            </thead>
+                            <tbody id="compareCommonBody">
+                                <!-- Datos dinámicos -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Juegos únicos por usuario -->
+                <div id="compareUnique" class="hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">🎲 Juegos Únicos</h3>
+                    <div id="compareUniqueContent" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Contenido dinámico -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección: Usuarios -->
+        <section id="section-usuarios" class="section hidden">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <h2 class="text-xl font-bold text-gray-800">Gestión de Usuarios</h2>
+                <button onclick="openAddUserModal()" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition">+ Añadir Usuario</button>
+            </div>
+
+            <div id="usersGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <!-- Los usuarios se cargarán aquí -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal: Añadir Juego al Catálogo -->
+    <div id="addGameModal" class="modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-screen overflow-y-auto">
+            <div class="p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Añadir Juego al Catálogo</h3>
+                <form id="addGameForm" onsubmit="submitAddGame(event)">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                            <input type="text" name="nombre" required class="w-full border rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Plataforma *</label>
+                            <select name="plataforma" required class="w-full border rounded px-3 py-2">
+                                <option value="">Selecciona...</option>
+                                <option value="PC">PC</option>
+                                <option value="PlayStation">PlayStation</option>
+                                <option value="Xbox">Xbox</option>
+                                <option value="Nintendo Switch">Nintendo Switch</option>
+                                <option value="Móvil">Móvil</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
+                            <select name="categoriaId" required class="w-full border rounded px-3 py-2" id="gameCategory">
+                                <option value="">Selecciona...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Año de Lanzamiento *</label>
+                            <input type="number" name="anioLanzamiento" required min="1970" max="2030" class="w-full border rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                            <textarea name="descripcion" rows="3" class="w-full border rounded px-3 py-2"></textarea>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button type="button" onclick="closeModal('addGameModal')" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancelar</button>
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Añadir Usuario -->
+    <div id="addUserModal" class="modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Añadir Usuario</h3>
+                <form id="addUserForm" onsubmit="submitAddUser(event)">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                            <input type="text" name="nombre" required minlength="2" maxlength="50" class="w-full border rounded px-3 py-2">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button type="button" onclick="closeModal('addUserModal')" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancelar</button>
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Crear Tierlist -->
+    <div id="createTierlistModal" class="modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Crear Nueva Tierlist</h3>
+                <form id="createTierlistForm" onsubmit="submitCreateTierlist(event)">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Año *</label>
+                            <input type="number" name="anio" required min="2000" max="2030" class="w-full border rounded px-3 py-2" placeholder="Ej: 2024">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button type="button" onclick="closeModal('createTierlistModal')" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancelar</button>
+                        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Crear</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Añadir Juego a Tierlist -->
+    <div id="addToTierlistModal" class="modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Añadir Juego a Mi Tierlist</h3>
+                <form id="addToTierlistForm" onsubmit="submitAddToTierlist(event)">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Juego *</label>
+                            <select name="gameId" required class="w-full border rounded px-3 py-2" id="tierlistGameSelect">
+                                <option value="">Selecciona un juego...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Rating (1-10) *</label>
+                            <input type="number" name="rating" required min="1" max="10" class="w-full border rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Año Jugado *</label>
+                            <input type="number" name="anioJugado" required min="2000" max="2030" class="w-full border rounded px-3 py-2">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 mt-6">
+                        <button type="button" onclick="closeModal('addToTierlistModal')" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancelar</button>
+                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Añadir</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Editar Entry de Tierlist -->
+    <div id="editEntryModal" class="modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div class="p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Editar Valoración</h3>
+                <form id="editEntryForm" onsubmit="submitEditEntry(event)">
+                    <input type="hidden" name="entryId" id="editEntryId">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Juego</label>
+                            <p id="editEntryGameName" class="text-gray-800 font-medium"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Rating (1-10) *</label>
+                            <input type="number" name="rating" id="editEntryRating" required min="1" max="10" class="w-full border rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Año Jugado *</label>
+                            <input type="number" name="anioJugado" id="editEntryYear" required min="2000" max="2030" class="w-full border rounded px-3 py-2">
+                        </div>
+                    </div>
+                    <div class="flex justify-between mt-6">
+                        <button type="button" onclick="deleteEntry()" class="text-red-600 hover:text-red-800">Eliminar</button>
+                        <div class="flex gap-3">
+                            <button type="button" onclick="closeModal('editEntryModal')" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancelar</button>
+                            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Guardar</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast para notificaciones -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg hidden transition-opacity">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // ==================== ESTADO GLOBAL ====================
+        let currentUserId = null;
+        let currentTierlistYear = null;
+        let allGames = [];
+        let allUsers = [];
+        let allCategories = [];
+
+        // ==================== INICIALIZACIÓN ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUsers();
+            loadCategories();
+            showSection('catalogo');
+            populateYearSelects();
+        });
+
+        function populateYearSelects() {
+            const currentYear = new Date().getFullYear();
+            const years = [];
+            for (let y = currentYear; y >= 2000; y--) years.push(y);
+            
+            const selects = ['myTierlistYear', 'exploreYear', 'compareYear'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    const firstOption = select.options[0];
+                    select.innerHTML = '';
+                    select.appendChild(firstOption);
+                    years.forEach(y => {
+                        const option = document.createElement('option');
+                        option.value = y;
+                        option.textContent = y;
+                        select.appendChild(option);
+                    });
+                }
+            });
+        }
+
+        // ==================== NAVEGACIÓN ====================
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('section-' + sectionId).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('border-indigo-500', 'text-indigo-600');
+                b.classList.add('border-transparent');
+            });
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('border-indigo-500', 'text-indigo-600');
+
+            // Cargar datos según la sección
+            switch(sectionId) {
+                case 'catalogo': loadGames(); break;
+                case 'mi-tierlist': loadMyTierlists(); break;
+                case 'explorar': loadExploreFilters(); break;
+                case 'comparar': loadCompareFilters(); break;
+                case 'usuarios': loadUsers(); break;
+            }
+        }
+
+        // ==================== API CALLS ====================
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (body) options.body = JSON.stringify(body);
+            
+            try {
+                const response = await fetch(API_BASE_URL + endpoint, options);
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({ message: 'Error desconocido' }));
+                    throw new Error(error.message || `Error ${response.status}`);
+                }
+                if (response.status === 204) return null;
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                showToast(error.message, 'error');
+                throw error;
+            }
+        }
+
+        // ==================== USUARIOS ====================
+        async function loadUsers() {
+            try {
+                allUsers = await apiCall('/users');
+                renderUsers();
+                updateUserSelects();
+            } catch (e) {
+                console.error('Error cargando usuarios:', e);
+            }
+        }
+
+        function renderUsers() {
+            const grid = document.getElementById('usersGrid');
+            if (!allUsers.length) {
+                grid.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">No hay usuarios. ¡Añade el primero!</p>';
+                return;
+            }
+            grid.innerHTML = allUsers.map(user => `
+                <div class="bg-white rounded-lg shadow p-4 hover:shadow-md transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                            <span class="text-xl">${user.nombre.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-800">${user.nombre}</h3>
+                            <p class="text-xs text-gray-500">Desde ${new Date(user.fechaCreacion).toLocaleDateString()}</p>
+                        </div>
+                        <button onclick="deleteUser(${user.id})" class="text-red-500 hover:text-red-700 text-sm">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateUserSelects() {
+            const selects = ['currentUser', 'exploreUser', 'compareUsers'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    const isMultiple = select.multiple;
+                    const firstOption = select.options[0];
+                    select.innerHTML = '';
+                    if (!isMultiple) select.appendChild(firstOption);
+                    allUsers.forEach(u => {
+                        const option = document.createElement('option');
+                        option.value = u.id;
+                        option.textContent = u.nombre;
+                        select.appendChild(option);
+                    });
+                    if (id === 'currentUser' && currentUserId) {
+                        select.value = currentUserId;
+                    }
+                }
+            });
+        }
+
+        document.getElementById('currentUser').addEventListener('change', (e) => {
+            currentUserId = e.target.value ? parseInt(e.target.value) : null;
+            if (document.getElementById('section-mi-tierlist').classList.contains('hidden') === false) {
+                loadMyTierlists();
+            }
+        });
+
+        async function deleteUser(id) {
+            if (!confirm('¿Eliminar este usuario? Se eliminarán también sus tierlists.')) return;
+            try {
+                await apiCall(`/users/${id}`, 'DELETE');
+                showToast('Usuario eliminado');
+                if (currentUserId === id) {
+                    currentUserId = null;
+                    document.getElementById('currentUser').value = '';
+                }
+                loadUsers();
+            } catch (e) {}
+        }
+
+        // ==================== CATEGORÍAS ====================
+        async function loadCategories() {
+            try {
+                allCategories = await apiCall('/categories');
+                updateCategorySelects();
+            } catch (e) {
+                console.error('Error cargando categorías:', e);
+            }
+        }
+
+        function updateCategorySelects() {
+            const selects = ['filterGameCategory', 'exploreCategory', 'gameCategory'];
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    const firstOption = select.options[0];
+                    select.innerHTML = '';
+                    select.appendChild(firstOption);
+                    allCategories.forEach(c => {
+                        const option = document.createElement('option');
+                        option.value = c.id;
+                        option.textContent = c.nombre;
+                        select.appendChild(option);
+                    });
+                }
+            });
+        }
+
+        // ==================== JUEGOS (CATÁLOGO) ====================
+        async function loadGames() {
+            try {
+                allGames = await apiCall('/games');
+                renderGames(allGames);
+            } catch (e) {
+                console.error('Error cargando juegos:', e);
+            }
+        }
+
+        function renderGames(games) {
+            const grid = document.getElementById('gamesGrid');
+            if (!games.length) {
+                grid.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">No hay juegos en el catálogo. ¡Añade el primero!</p>';
+                return;
+            }
+            grid.innerHTML = games.map(game => `
+                <div class="bg-white rounded-lg shadow hover:shadow-md transition overflow-hidden">
+                    <div class="p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-semibold text-gray-800">${game.nombre}</h3>
+                            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">${game.anioLanzamiento}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-2 mb-2">
+                            <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">${game.categoria?.nombre || game.categoria || 'Sin categoría'}</span>
+                            <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">${game.plataforma}</span>
+                        </div>
+                        ${game.descripcion ? `<p class="text-sm text-gray-600 line-clamp-2">${game.descripcion}</p>` : ''}
+                    </div>
+                    <div class="bg-gray-50 px-4 py-2 flex justify-end gap-2">
+                        <button onclick="addGameToTierlistQuick(${game.id})" class="text-indigo-600 hover:text-indigo-800 text-sm" title="Añadir a mi tierlist">➕</button>
+                        <button onclick="deleteGame(${game.id})" class="text-red-500 hover:text-red-700 text-sm" title="Eliminar">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterCatalog() {
+            const name = document.getElementById('filterGameName').value.toLowerCase();
+            const category = document.getElementById('filterGameCategory').value;
+            const platform = document.getElementById('filterGamePlatform').value;
+            const year = document.getElementById('filterGameYear').value;
+
+            const filtered = allGames.filter(g => {
+                if (name && !g.nombre.toLowerCase().includes(name)) return false;
+                if (category && g.categoria?.id != category && g.categoriaId != category) return false;
+                if (platform && g.plataforma !== platform) return false;
+                if (year && g.anioLanzamiento != year) return false;
+                return true;
+            });
+            renderGames(filtered);
+        }
+
+        async function deleteGame(id) {
+            if (!confirm('¿Eliminar este juego del catálogo?')) return;
+            try {
+                await apiCall(`/games/${id}`, 'DELETE');
+                showToast('Juego eliminado');
+                loadGames();
+            } catch (e) {}
+        }
+
+        function addGameToTierlistQuick(gameId) {
+            if (!currentUserId) {
+                showToast('Selecciona un usuario primero', 'error');
+                return;
+            }
+            const game = allGames.find(g => g.id === gameId);
+            openAddToTierlistModal(game);
+        }
+
+        // ==================== MI TIERLIST ====================
+        async function loadMyTierlists() {
+            if (!currentUserId) {
+                document.getElementById('myTierlistEmpty').classList.remove('hidden');
+                document.getElementById('myTierlistContent').classList.add('hidden');
+                document.getElementById('addToTierlistSection').classList.add('hidden');
+                return;
+            }
+
+            try {
+                const tierlists = await apiCall(`/users/${currentUserId}/tierlists`);
+                const yearSelect = document.getElementById('myTierlistYear');
+                
+                // Actualizar opciones del select con tierlists existentes
+                const currentYear = new Date().getFullYear();
+                const years = new Set(tierlists.map(t => t.anio));
+                for (let y = currentYear; y >= 2000; y--) years.add(y);
+                
+                const sortedYears = Array.from(years).sort((a, b) => b - a);
+                yearSelect.innerHTML = '<option value="">Selecciona año...</option>';
+                sortedYears.forEach(y => {
+                    const option = document.createElement('option');
+                    option.value = y;
+                    option.textContent = y + (tierlists.some(t => t.anio == y) ? ' ✓' : '');
+                    yearSelect.appendChild(option);
+                });
+
+                if (currentTierlistYear) {
+                    yearSelect.value = currentTierlistYear;
+                    loadMyTierlist();
+                }
+            } catch (e) {
+                console.error('Error cargando tierlists:', e);
+            }
+        }
+
+        async function loadMyTierlist() {
+            const year = document.getElementById('myTierlistYear').value;
+            currentTierlistYear = year;
+
+            if (!currentUserId || !year) {
+                document.getElementById('myTierlistEmpty').classList.remove('hidden');
+                document.getElementById('myTierlistContent').classList.add('hidden');
+                document.getElementById('addToTierlistSection').classList.add('hidden');
+                return;
+            }
+
+            try {
+                const tierlist = await apiCall(`/users/${currentUserId}/tierlists/${year}`);
+                
+                if (!tierlist || !tierlist.entries || tierlist.entries.length === 0) {
+                    document.getElementById('myTierlistEmpty').classList.remove('hidden');
+                    document.getElementById('myTierlistContent').classList.add('hidden');
+                } else {
+                    document.getElementById('myTierlistEmpty').classList.add('hidden');
+                    document.getElementById('myTierlistContent').classList.remove('hidden');
+                    renderMyTierlist(tierlist.entries);
+                }
+                document.getElementById('addToTierlistSection').classList.remove('hidden');
+            } catch (e) {
+                // Si no existe la tierlist, mostrar vacío
+                document.getElementById('myTierlistEmpty').classList.remove('hidden');
+                document.getElementById('myTierlistContent').classList.add('hidden');
+                document.getElementById('addToTierlistSection').classList.remove('hidden');
+            }
+        }
+
+        function renderMyTierlist(entries) {
+            // Limpiar tiers
+            ['s', 'a', 'b', 'c', 'd'].forEach(t => {
+                document.getElementById(`tier-${t}-games`).innerHTML = '';
+            });
+
+            entries.forEach(entry => {
+                const tier = getTierFromRating(entry.rating);
+                const container = document.getElementById(`tier-${tier}-games`);
+                const gameEl = document.createElement('div');
+                gameEl.className = 'bg-white rounded px-3 py-2 shadow-sm cursor-pointer hover:shadow-md transition flex items-center gap-2';
+                gameEl.onclick = () => openEditEntryModal(entry);
+                gameEl.innerHTML = `
+                    <span class="font-medium">${entry.nombre || entry.game?.nombre}</span>
+                    <span class="text-xs bg-gray-200 rounded px-1">${entry.rating}</span>
+                `;
+                container.appendChild(gameEl);
+            });
+        }
+
+        function getTierFromRating(rating) {
+            if (rating === 10) return 's';
+            if (rating >= 8) return 'a';
+            if (rating >= 6) return 'b';
+            if (rating >= 4) return 'c';
+            return 'd';
+        }
+
+        // ==================== EXPLORAR TIERLISTS ====================
+        function loadExploreFilters() {
+            updateUserSelects();
+            updateCategorySelects();
+        }
+
+        async function loadExploreEntries() {
+            const userId = document.getElementById('exploreUser').value;
+            const year = document.getElementById('exploreYear').value;
+            const category = document.getElementById('exploreCategory').value;
+            const ratingMin = document.getElementById('exploreRatingMin').value;
+            const ratingMax = document.getElementById('exploreRatingMax').value;
+
+            let queryParams = [];
+            if (userId) queryParams.push(`userId=${userId}`);
+            if (year) queryParams.push(`anio=${year}`);
+            if (category) queryParams.push(`categoria=${category}`);
+            if (ratingMin) queryParams.push(`ratingMin=${ratingMin}`);
+            if (ratingMax) queryParams.push(`ratingMax=${ratingMax}`);
+
+            try {
+                const entries = await apiCall(`/tierlists/entries?${queryParams.join('&')}`);
+                renderExploreResults(entries);
+            } catch (e) {
+                console.error('Error explorando entries:', e);
+            }
+        }
+
+        function renderExploreResults(entries) {
+            const container = document.getElementById('exploreResults');
+            
+            if (!entries || !entries.length) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-8">No se encontraron resultados con esos filtros.</p>';
+                return;
+            }
+
+            // Agrupar por usuario
+            const byUser = entries.reduce((acc, e) => {
+                const userName = e.userName || e.user?.nombre || 'Usuario';
+                if (!acc[userName]) acc[userName] = [];
+                acc[userName].push(e);
+                return acc;
+            }, {});
+
+            container.innerHTML = Object.entries(byUser).map(([user, userEntries]) => `
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="bg-indigo-50 px-4 py-3">
+                        <h4 class="font-semibold text-indigo-800">${user}</h4>
+                    </div>
+                    <div class="p-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            ${userEntries.map(e => `
+                                <div class="border rounded p-3">
+                                    <div class="flex justify-between items-start">
+                                        <span class="font-medium">${e.nombre || e.game?.nombre}</span>
+                                        <span class="text-lg font-bold ${getRatingColor(e.rating)}">${e.rating}</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1 mt-2 text-xs">
+                                        <span class="bg-gray-100 px-2 py-1 rounded">${e.categoria || e.game?.categoria?.nombre || ''}</span>
+                                        <span class="bg-gray-100 px-2 py-1 rounded">${e.anioJugado}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getRatingColor(rating) {
+            if (rating >= 9) return 'text-green-600';
+            if (rating >= 7) return 'text-yellow-600';
+            if (rating >= 5) return 'text-orange-600';
+            return 'text-red-600';
+        }
+
+        // ==================== COMPARAR TIERLISTS ====================
+        function loadCompareFilters() {
+            updateUserSelects();
+        }
+
+        async function loadComparison() {
+            const select = document.getElementById('compareUsers');
+            const selectedUsers = Array.from(select.selectedOptions).map(o => o.value);
+            const year = document.getElementById('compareYear').value;
+
+            if (selectedUsers.length < 2) {
+                showToast('Selecciona al menos 2 usuarios para comparar', 'error');
+                return;
+            }
+            if (!year) {
+                showToast('Selecciona un año', 'error');
+                return;
+            }
+
+            try {
+                const comparison = await apiCall(`/tierlists/compare?userIds=${selectedUsers.join(',')}&anio=${year}`);
+                renderComparison(comparison, selectedUsers);
+            } catch (e) {
+                console.error('Error comparando:', e);
+            }
+        }
+
+        function renderComparison(data, userIds) {
+            const userNames = userIds.map(id => allUsers.find(u => u.id == id)?.nombre || `Usuario ${id}`);
+
+            // Juegos comunes
+            if (data.common && data.common.length > 0) {
+                document.getElementById('compareCommon').classList.remove('hidden');
+                
+                const thead = document.getElementById('compareCommonHead');
+                thead.innerHTML = `
+                    <tr>
+                        <th class="px-4 py-3 text-left">Juego</th>
+                        ${userNames.map(n => `<th class="px-4 py-3 text-center">${n}</th>`).join('')}
+                        <th class="px-4 py-3 text-center">Diferencia</th>
+                    </tr>
+                `;
+
+                const tbody = document.getElementById('compareCommonBody');
+                tbody.innerHTML = data.common.map(game => {
+                    const ratings = userIds.map(id => game.ratings?.[id] || '-');
+                    const numericRatings = ratings.filter(r => typeof r === 'number');
+                    const diff = numericRatings.length > 1 ? Math.max(...numericRatings) - Math.min(...numericRatings) : 0;
+                    
+                    return `
+                        <tr class="border-t">
+                            <td class="px-4 py-3 font-medium">${game.nombre || game.gameName}</td>
+                            ${ratings.map(r => `<td class="px-4 py-3 text-center font-bold ${getRatingColor(r)}">${r}</td>`).join('')}
+                            <td class="px-4 py-3 text-center ${diff > 3 ? 'text-red-600 font-bold' : 'text-gray-500'}">${diff}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                document.getElementById('compareCommon').classList.add('hidden');
+            }
+
+            // Juegos únicos
+            if (data.unique && Object.keys(data.unique).length > 0) {
+                document.getElementById('compareUnique').classList.remove('hidden');
+                const container = document.getElementById('compareUniqueContent');
+                
+                container.innerHTML = Object.entries(data.unique).map(([userId, games]) => {
+                    const userName = allUsers.find(u => u.id == userId)?.nombre || `Usuario ${userId}`;
+                    return `
+                        <div class="bg-white rounded-lg shadow p-4">
+                            <h4 class="font-semibold text-gray-800 mb-3">Solo ${userName}</h4>
+                            <div class="space-y-2">
+                                ${games.map(g => `
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span>${g.nombre || g.gameName}</span>
+                                        <span class="font-bold ${getRatingColor(g.rating)}">${g.rating}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                document.getElementById('compareUnique').classList.add('hidden');
+            }
+        }
+
+        // ==================== MODALES ====================
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function openAddGameModal() {
+            document.getElementById('addGameForm').reset();
+            openModal('addGameModal');
+        }
+
+        function openAddUserModal() {
+            document.getElementById('addUserForm').reset();
+            openModal('addUserModal');
+        }
+
+        function openCreateTierlistModal() {
+            if (!currentUserId) {
+                showToast('Selecciona un usuario primero', 'error');
+                return;
+            }
+            document.getElementById('createTierlistForm').reset();
+            openModal('createTierlistModal');
+        }
+
+        function openAddToTierlistModal(preselectedGame = null) {
+            if (!currentUserId) {
+                showToast('Selecciona un usuario primero', 'error');
+                return;
+            }
+            if (!currentTierlistYear) {
+                showToast('Selecciona o crea una tierlist primero', 'error');
+                return;
+            }
+
+            const select = document.getElementById('tierlistGameSelect');
+            select.innerHTML = '<option value="">Selecciona un juego...</option>';
+            allGames.forEach(g => {
+                const option = document.createElement('option');
+                option.value = g.id;
+                option.textContent = `${g.nombre} (${g.plataforma})`;
+                select.appendChild(option);
+            });
+
+            document.getElementById('addToTierlistForm').reset();
+            if (preselectedGame) {
+                select.value = preselectedGame.id;
+            }
+            document.querySelector('#addToTierlistForm [name="anioJugado"]').value = currentTierlistYear;
+            
+            openModal('addToTierlistModal');
+        }
+
+        function openEditEntryModal(entry) {
+            document.getElementById('editEntryId').value = entry.id;
+            document.getElementById('editEntryGameName').textContent = entry.nombre || entry.game?.nombre;
+            document.getElementById('editEntryRating').value = entry.rating;
+            document.getElementById('editEntryYear').value = entry.anioJugado;
+            openModal('editEntryModal');
+        }
+
+        // ==================== FORM SUBMISSIONS ====================
+        async function submitAddGame(event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = {
+                nombre: form.nombre.value,
+                plataforma: form.plataforma.value,
+                categoriaId: parseInt(form.categoriaId.value),
+                anioLanzamiento: parseInt(form.anioLanzamiento.value),
+                descripcion: form.descripcion.value || null
+            };
+
+            try {
+                await apiCall('/games', 'POST', data);
+                showToast('Juego añadido al catálogo');
+                closeModal('addGameModal');
+                loadGames();
+            } catch (e) {}
+        }
+
+        async function submitAddUser(event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = { nombre: form.nombre.value };
+
+            try {
+                await apiCall('/users', 'POST', data);
+                showToast('Usuario creado');
+                closeModal('addUserModal');
+                loadUsers();
+            } catch (e) {}
+        }
+
+        async function submitCreateTierlist(event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = { anio: parseInt(form.anio.value) };
+
+            try {
+                await apiCall(`/users/${currentUserId}/tierlists`, 'POST', data);
+                showToast('Tierlist creada');
+                closeModal('createTierlistModal');
+                currentTierlistYear = data.anio;
+                document.getElementById('myTierlistYear').value = data.anio;
+                loadMyTierlists();
+            } catch (e) {}
+        }
+
+        async function submitAddToTierlist(event) {
+            event.preventDefault();
+            const form = event.target;
+            const data = {
+                gameId: parseInt(form.gameId.value),
+                rating: parseInt(form.rating.value),
+                anioJugado: parseInt(form.anioJugado.value)
+            };
+
+            try {
+                // Primero intentar crear la tierlist si no existe
+                try {
+                    await apiCall(`/users/${currentUserId}/tierlists`, 'POST', { anio: currentTierlistYear });
+                } catch (e) {
+                    // Ignorar si ya existe
+                }
+
+                await apiCall(`/users/${currentUserId}/tierlists/${currentTierlistYear}/entries`, 'POST', data);
+                showToast('Juego añadido a tu tierlist');
+                closeModal('addToTierlistModal');
+                loadMyTierlist();
+            } catch (e) {}
+        }
+
+        async function submitEditEntry(event) {
+            event.preventDefault();
+            const entryId = document.getElementById('editEntryId').value;
+            const data = {
+                rating: parseInt(document.getElementById('editEntryRating').value),
+                anioJugado: parseInt(document.getElementById('editEntryYear').value)
+            };
+
+            try {
+                await apiCall(`/users/${currentUserId}/tierlists/${currentTierlistYear}/entries/${entryId}`, 'PUT', data);
+                showToast('Valoración actualizada');
+                closeModal('editEntryModal');
+                loadMyTierlist();
+            } catch (e) {}
+        }
+
+        async function deleteEntry() {
+            const entryId = document.getElementById('editEntryId').value;
+            if (!confirm('¿Eliminar este juego de tu tierlist?')) return;
+
+            try {
+                await apiCall(`/users/${currentUserId}/tierlists/${currentTierlistYear}/entries/${entryId}`, 'DELETE');
+                showToast('Juego eliminado de tu tierlist');
+                closeModal('editEntryModal');
+                loadMyTierlist();
+            } catch (e) {}
+        }
+
+        // ==================== UTILIDADES ====================
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg transition-opacity ${
+                type === 'error' ? 'bg-red-600' : 'bg-green-600'
+            } text-white`;
+            toastMessage.textContent = message;
+            toast.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Cerrar modales al hacer clic fuera
+        document.querySelectorAll('.modal-backdrop').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

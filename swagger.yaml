@@ -1,0 +1,1089 @@
+openapi: 3.0.3
+info:
+  title: Game Tierlist API
+  description: |
+    API para gestionar tierlists de juegos entre amigos.
+    
+    ## Funcionalidades principales
+    - Gestión de usuarios (lista de amigos)
+    - Catálogo compartido de juegos
+    - Tierlists personales por año
+    - Filtros y comparación de tierlists
+  version: 1.0.0
+  contact:
+    name: Tu Nombre
+
+servers:
+  - url: http://localhost:8080/api
+    description: Servidor de desarrollo
+
+tags:
+  - name: Users
+    description: Gestión de usuarios
+  - name: Categories
+    description: Categorías de juegos (solo lectura)
+  - name: Games
+    description: Catálogo compartido de juegos
+  - name: Tierlists
+    description: Tierlists personales por usuario y año
+  - name: Explore
+    description: Explorar y comparar tierlists
+
+paths:
+  # ==================== USERS ====================
+  /users:
+    get:
+      tags: [Users]
+      summary: Listar todos los usuarios
+      operationId: getAllUsers
+      responses:
+        '200':
+          description: Lista de usuarios ordenados alfabéticamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+              example:
+                - id: 1
+                  nombre: "Carlos"
+                  fechaCreacion: "2024-01-15T10:30:00Z"
+                - id: 2
+                  nombre: "María"
+                  fechaCreacion: "2024-01-16T14:20:00Z"
+
+    post:
+      tags: [Users]
+      summary: Crear un nuevo usuario
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            example:
+              nombre: "Carlos"
+      responses:
+        '201':
+          description: Usuario creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "VALIDATION_ERROR"
+                message: "nombre: El nombre debe tener entre 2 y 50 caracteres"
+                timestamp: "2024-01-15T10:30:00Z"
+                path: "/api/users"
+        '409':
+          description: Usuario ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "DUPLICATE_ENTITY"
+                message: "Ya existe un usuario con el nombre 'Carlos'"
+                timestamp: "2024-01-15T10:30:00Z"
+                path: "/api/users"
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Obtener usuario por ID
+      operationId: getUserById
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Usuario encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Users]
+      summary: Actualizar usuario
+      operationId: updateUser
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Nombre ya en uso por otro usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags: [Users]
+      summary: Eliminar usuario
+      description: Elimina el usuario y todas sus tierlists asociadas
+      operationId: deleteUser
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '204':
+          description: Usuario eliminado
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== CATEGORIES ====================
+  /categories:
+    get:
+      tags: [Categories]
+      summary: Listar todas las categorías
+      operationId: getAllCategories
+      responses:
+        '200':
+          description: Lista de categorías ordenadas alfabéticamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponse'
+              example:
+                - id: 1
+                  nombre: "Aventura"
+                  descripcion: "Juegos de aventura y exploración"
+                - id: 2
+                  nombre: "RPG"
+                  descripcion: "Juegos de rol"
+
+  /categories/{id}:
+    get:
+      tags: [Categories]
+      summary: Obtener categoría por ID
+      operationId: getCategoryById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Categoría encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== GAMES ====================
+  /games:
+    get:
+      tags: [Games]
+      summary: Listar todos los juegos del catálogo
+      operationId: getAllGames
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          schema:
+            type: string
+            example: "nombre,asc"
+      responses:
+        '200':
+          description: Lista paginada de juegos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedGamesResponse'
+
+    post:
+      tags: [Games]
+      summary: Añadir juego al catálogo
+      operationId: createGame
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGameRequest'
+            example:
+              nombre: "Elden Ring"
+              plataforma: "PC"
+              categoriaId: 2
+              anioLanzamiento: 2022
+              descripcion: "Action RPG de FromSoftware"
+      responses:
+        '201':
+          description: Juego creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Ya existe un juego con ese nombre y plataforma
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /games/{id}:
+    get:
+      tags: [Games]
+      summary: Obtener juego por ID
+      operationId: getGameById
+      parameters:
+        - $ref: '#/components/parameters/GameId'
+      responses:
+        '200':
+          description: Juego encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Games]
+      summary: Actualizar juego
+      operationId: updateGame
+      parameters:
+        - $ref: '#/components/parameters/GameId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGameRequest'
+      responses:
+        '200':
+          description: Juego actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags: [Games]
+      summary: Eliminar juego del catálogo
+      description: No se puede eliminar si está en alguna tierlist
+      operationId: deleteGame
+      parameters:
+        - $ref: '#/components/parameters/GameId'
+      responses:
+        '204':
+          description: Juego eliminado
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El juego está en uso en alguna tierlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /games/search:
+    get:
+      tags: [Games]
+      summary: Buscar juegos con filtros
+      operationId: searchGames
+      parameters:
+        - name: nombre
+          in: query
+          description: Búsqueda parcial por nombre (case insensitive)
+          schema:
+            type: string
+        - name: plataforma
+          in: query
+          schema:
+            type: string
+            enum: [PC, PlayStation, Xbox, Nintendo Switch, Móvil]
+        - name: categoriaId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: anioLanzamiento
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Resultados de búsqueda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedGamesResponse'
+
+  # ==================== TIERLISTS ====================
+  /users/{userId}/tierlists:
+    get:
+      tags: [Tierlists]
+      summary: Listar tierlists de un usuario
+      operationId: getUserTierlists
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Lista de tierlists del usuario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TierlistSummary'
+              example:
+                - id: 1
+                  anio: 2024
+                  totalJuegos: 15
+                  fechaCreacion: "2024-01-01T00:00:00Z"
+                - id: 2
+                  anio: 2023
+                  totalJuegos: 22
+                  fechaCreacion: "2023-01-01T00:00:00Z"
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Tierlists]
+      summary: Crear tierlist para un año
+      operationId: createTierlist
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTierlistRequest'
+            example:
+              anio: 2024
+      responses:
+        '201':
+          description: Tierlist creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TierlistSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Ya existe una tierlist para ese año
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{userId}/tierlists/{anio}:
+    get:
+      tags: [Tierlists]
+      summary: Obtener tierlist con todos sus juegos
+      operationId: getTierlistDetail
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Anio'
+      responses:
+        '200':
+          description: Tierlist con entries ordenadas por rating descendente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TierlistDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{userId}/tierlists/{anio}/entries:
+    post:
+      tags: [Tierlists]
+      summary: Añadir juego a la tierlist
+      operationId: addEntryToTierlist
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Anio'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEntryRequest'
+            example:
+              gameId: 1
+              rating: 9
+              anioJugado: 2024
+      responses:
+        '201':
+          description: Entry añadida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TierlistEntryResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Usuario, tierlist o juego no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: El juego ya está en esta tierlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{userId}/tierlists/{anio}/entries/{entryId}:
+    put:
+      tags: [Tierlists]
+      summary: Actualizar valoración de un juego
+      operationId: updateEntry
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Anio'
+        - $ref: '#/components/parameters/EntryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEntryRequest'
+            example:
+              rating: 8
+              anioJugado: 2024
+      responses:
+        '200':
+          description: Entry actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TierlistEntryResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Tierlists]
+      summary: Eliminar juego de la tierlist
+      operationId: deleteEntry
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Anio'
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '204':
+          description: Entry eliminada
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== EXPLORE ====================
+  /tierlists:
+    get:
+      tags: [Explore]
+      summary: Listar todas las tierlists
+      operationId: getAllTierlists
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Lista de todas las tierlists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TierlistOverview'
+
+  /tierlists/entries:
+    get:
+      tags: [Explore]
+      summary: Buscar entries con filtros
+      description: Busca valoraciones de juegos en todas las tierlists con múltiples filtros
+      operationId: searchEntries
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: anio
+          in: query
+          description: Año de la tierlist
+          schema:
+            type: integer
+        - name: categoria
+          in: query
+          description: Nombre de la categoría
+          schema:
+            type: string
+        - name: ratingMin
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+        - name: ratingMax
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+        - name: plataforma
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Resultados de búsqueda
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TierlistEntryWithUser'
+
+  /tierlists/compare:
+    get:
+      tags: [Explore]
+      summary: Comparar tierlists de varios usuarios
+      operationId: compareTierlists
+      parameters:
+        - name: userIds
+          in: query
+          required: true
+          description: IDs de usuarios separados por coma (mínimo 2)
+          schema:
+            type: string
+          example: "1,2,3"
+        - name: anio
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 2024
+      responses:
+        '200':
+          description: Comparación de tierlists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TierlistComparison'
+        '400':
+          description: Parámetros inválidos (menos de 2 usuarios)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tierlists/stats:
+    get:
+      tags: [Explore]
+      summary: Obtener estadísticas agregadas
+      operationId: getStats
+      parameters:
+        - name: anio
+          in: query
+          description: Filtrar por año (opcional)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Estadísticas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TierlistStats'
+
+# ==================== COMPONENTS ====================
+components:
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+    GameId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+    Anio:
+      name: anio
+      in: path
+      required: true
+      schema:
+        type: integer
+      example: 2024
+
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+
+  responses:
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "NOT_FOUND"
+            message: "Recurso no encontrado"
+            timestamp: "2024-01-15T10:30:00Z"
+            path: "/api/users/99"
+
+    ValidationError:
+      description: Error de validación
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "VALIDATION_ERROR"
+            message: "nombre: El nombre es obligatorio"
+            timestamp: "2024-01-15T10:30:00Z"
+            path: "/api/users"
+
+  schemas:
+    # ===== ERROR =====
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Código de error
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: Mensaje descriptivo
+          example: "El nombre es obligatorio"
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          example: "/api/users"
+
+    # ===== USERS =====
+    CreateUserRequest:
+      type: object
+      required: [nombre]
+      properties:
+        nombre:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: Nombre único del usuario
+          example: "Carlos"
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nombre:
+          type: string
+          example: "Carlos"
+        fechaCreacion:
+          type: string
+          format: date-time
+
+    # ===== CATEGORIES =====
+    CategoryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        nombre:
+          type: string
+          example: "RPG"
+        descripcion:
+          type: string
+          example: "Juegos de rol"
+
+    # ===== GAMES =====
+    CreateGameRequest:
+      type: object
+      required: [nombre, plataforma, categoriaId, anioLanzamiento]
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Elden Ring"
+        plataforma:
+          type: string
+          enum: [PC, PlayStation, Xbox, Nintendo Switch, Móvil]
+          example: "PC"
+        categoriaId:
+          type: integer
+          format: int64
+          example: 2
+        anioLanzamiento:
+          type: integer
+          minimum: 1970
+          maximum: 2030
+          example: 2022
+        descripcion:
+          type: string
+          maxLength: 500
+          example: "Action RPG de FromSoftware"
+
+    GameResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        nombre:
+          type: string
+        plataforma:
+          type: string
+        categoria:
+          $ref: '#/components/schemas/CategoryResponse'
+        anioLanzamiento:
+          type: integer
+        descripcion:
+          type: string
+        fechaCreacion:
+          type: string
+          format: date-time
+
+    PagedGamesResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/GameResponse'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        number:
+          type: integer
+          description: Página actual (0-indexed)
+        size:
+          type: integer
+
+    # ===== TIERLISTS =====
+    CreateTierlistRequest:
+      type: object
+      required: [anio]
+      properties:
+        anio:
+          type: integer
+          minimum: 2000
+          maximum: 2030
+          example: 2024
+
+    TierlistSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        anio:
+          type: integer
+        totalJuegos:
+          type: integer
+        fechaCreacion:
+          type: string
+          format: date-time
+
+    TierlistDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        anio:
+          type: integer
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/TierlistEntryResponse'
+        fechaCreacion:
+          type: string
+          format: date-time
+
+    CreateEntryRequest:
+      type: object
+      required: [gameId, rating, anioJugado]
+      properties:
+        gameId:
+          type: integer
+          format: int64
+          example: 1
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 9
+        anioJugado:
+          type: integer
+          minimum: 2000
+          maximum: 2030
+          example: 2024
+
+    UpdateEntryRequest:
+      type: object
+      required: [rating, anioJugado]
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+        anioJugado:
+          type: integer
+          minimum: 2000
+          maximum: 2030
+
+    TierlistEntryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        gameId:
+          type: integer
+          format: int64
+        nombre:
+          type: string
+          description: Nombre del juego (denormalizado)
+        plataforma:
+          type: string
+        categoria:
+          type: string
+        anioLanzamiento:
+          type: integer
+        descripcion:
+          type: string
+        rating:
+          type: integer
+        anioJugado:
+          type: integer
+        fechaCreacion:
+          type: string
+          format: date-time
+
+    # ===== EXPLORE =====
+    TierlistOverview:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        anio:
+          type: integer
+        totalJuegos:
+          type: integer
+        fechaCreacion:
+          type: string
+          format: date-time
+
+    TierlistEntryWithUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        userName:
+          type: string
+        anio:
+          type: integer
+        nombre:
+          type: string
+        plataforma:
+          type: string
+        categoria:
+          type: string
+        rating:
+          type: integer
+        anioJugado:
+          type: integer
+
+    TierlistComparison:
+      type: object
+      properties:
+        anio:
+          type: integer
+        users:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+              nombre:
+                type: string
+        common:
+          type: array
+          description: Juegos que tienen todos los usuarios
+          items:
+            type: object
+            properties:
+              gameId:
+                type: integer
+                format: int64
+              nombre:
+                type: string
+              ratings:
+                type: object
+                additionalProperties:
+                  type: integer
+                description: "Map de userId -> rating"
+                example:
+                  "1": 9
+                  "2": 7
+              maxDifference:
+                type: integer
+                description: Diferencia máxima entre ratings
+        unique:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              properties:
+                gameId:
+                  type: integer
+                  format: int64
+                nombre:
+                  type: string
+                rating:
+                  type: integer
+          description: "Map de userId -> lista de juegos únicos de ese usuario"
+
+    TierlistStats:
+      type: object
+      properties:
+        anio:
+          type: integer
+          nullable: true
+        ratingPromedioPorCategoria:
+          type: array
+          items:
+            type: object
+            properties:
+              categoria:
+                type: string
+              ratingPromedio:
+                type: number
+                format: double
+              totalJuegos:
+                type: integer
+        topJuegos:
+          type: array
+          items:
+            type: object
+            properties:
+              nombre:
+                type: string
+              ratingPromedio:
+                type: number
+                format: double
+              vecesValorado:
+                type: integer
+        usuariosMasActivos:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: integer
+                format: int64
+              nombre:
+                type: string
+              totalJuegosValorados:
+                type: integer

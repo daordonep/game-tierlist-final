@@ -1,0 +1,439 @@
+Summary,Issue Type,Description,Story Points,Priority,Labels
+"Sprint 4: Tierlists Personales",Epic,"Funcionalidad principal: tierlists por usuario y año con relaciones @OneToMany, cascade delete, campos denormalizados y prevención del problema N+1.",,High,epic
+"TIER-01: Crear entidades Tierlist y TierlistEntry",Story,"## 🎯 Objetivo
+Crear las entidades Tierlist y TierlistEntry con relación @OneToMany y campos denormalizados.
+
+---
+
+## 📋 Especificación funcional
+
+**Entidad Tierlist:**
+- Hereda de BaseEntity
+- user: User (@ManyToOne LAZY)
+- anio: Integer
+- entries: List<TierlistEntry> (@OneToMany, cascade ALL, orphanRemoval)
+- Constraint UNIQUE: (user_id, anio) - Un usuario solo puede tener una tierlist por año
+
+**Entidad TierlistEntry:**
+- Hereda de BaseEntity
+- tierlist: Tierlist (@ManyToOne LAZY)
+- game: Game (@ManyToOne LAZY)
+- rating: Integer (1-10)
+- anioJugado: Integer (año en que se jugó)
+- **Campos denormalizados (copiados del Game):**
+  - gameNombre: String
+  - gamePlataforma: String
+  - gameCategoria: String
+  - gameDescripcion: String
+  - gameAnioLanzamiento: Integer
+- Constraint UNIQUE: (tierlist_id, game_id) - Un juego solo puede estar una vez por tierlist
+
+**¿Por qué denormalizar?**
+- Permite filtrar entries sin hacer JOIN a Game
+- Mejor rendimiento en listados y búsquedas
+- Patrón común en aplicaciones reales con muchos datos
+- Trade-off: duplicación de datos vs velocidad de lectura
+
+**Repositories:**
+- TierlistRepository con método findByUserIdAndAnio()
+- TierlistEntryRepository con existsByTierlistIdAndGameId()
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] Entidad Tierlist con @OneToMany cascade ALL y orphanRemoval
+- [ ] Entidad TierlistEntry con campos denormalizados
+- [ ] Constraint UNIQUE en (user_id, anio) para Tierlist
+- [ ] Constraint UNIQUE en (tierlist_id, game_id) para Entry
+- [ ] Métodos helper en Tierlist: addEntry(), removeEntry()
+- [ ] Constructor en TierlistEntry que copia datos del Game
+
+---
+
+## 🧪 Testing requerido
+
+**Tests de repositorio:**
+- shouldFindTierlistByUserAndAnio
+- shouldCascadeDeleteEntries (al eliminar tierlist, se eliminan entries)
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| @OneToMany cascade | Concepto JPA |
+| orphanRemoval | Elimina entries huérfanas automáticamente |
+
+---
+
+## 💡 Pistas
+
+1. @OneToMany(mappedBy = ""tierlist"", cascade = CascadeType.ALL, orphanRemoval = true)
+2. El constructor de TierlistEntry recibe Game y copia sus datos
+3. Los métodos helper mantienen la relación bidireccional sincronizada
+4. @OrderBy(""rating DESC"") ordena entries por rating automáticamente
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-4-soluciones.md → TIER-01",5,High,"backend,entity,sprint4"
+"TIER-02: POST /api/users/{userId}/tierlists - Crear tierlist",Story,"## 🎯 Objetivo
+Implementar endpoint para crear una tierlist para un usuario y año específico.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| POST | /api/users/{userId}/tierlists | CreateTierlistRequest | 201 + TierlistSummary |
+
+**CreateTierlistRequest (Record):**
+- anio: Integer (@NotNull, @Min=2000, @Max=2030)
+
+**TierlistSummary (Record):**
+- id: Long
+- anio: Integer
+- totalJuegos: Integer (inicialmente 0)
+- fechaCreacion: LocalDateTime
+
+**Reglas de negocio:**
+- El usuario debe existir
+- No puede existir otra tierlist del mismo usuario para ese año
+
+---
+
+## ✅ Criterios de aceptación
+
+| Caso | Input | Output |
+|------|-------|--------|
+| Crear válido | POST /api/users/1/tierlists {anio: 2024} | 201 + TierlistSummary |
+| Usuario no existe | POST /api/users/999/tierlists | 404 |
+| Año duplicado | POST con año que ya existe para ese usuario | 409 |
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (TierlistServiceTest):**
+- shouldCreateTierlist_WhenValid
+- shouldThrowNotFound_WhenUserDoesNotExist
+- shouldThrowDuplicate_WhenTierlistAlreadyExistsForYear
+
+**Tests de controller (TierlistControllerTest):**
+- shouldReturn201_WhenTierlistCreated
+- shouldReturn404_WhenUserNotFound
+- shouldReturn409_WhenDuplicateYear
+
+---
+
+## 💡 Pistas
+
+1. El controller usa @PathVariable para userId
+2. Verificar primero que el usuario existe
+3. Verificar que no existe tierlist para ese usuario+año
+4. totalJuegos es entries.size() o un campo calculado
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-4-soluciones.md → TIER-02",3,High,"backend,api,sprint4"
+"TIER-03: GET /api/users/{userId}/tierlists - Listar tierlists",Story,"## 🎯 Objetivo
+Implementar endpoint para listar las tierlists de un usuario.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Response |
+|--------|----------|----------|
+| GET | /api/users/{userId}/tierlists | 200 + List<TierlistSummary> |
+
+**Comportamiento:**
+- Devuelve todas las tierlists del usuario ordenadas por año DESC
+- Incluye el conteo de juegos (totalJuegos) en cada tierlist
+- Si el usuario no existe, devuelve 404
+- Si no tiene tierlists, devuelve lista vacía
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] GET /api/users/1/tierlists devuelve tierlists ordenadas por año DESC
+- [ ] Cada TierlistSummary incluye totalJuegos correcto
+- [ ] GET /api/users/999/tierlists devuelve 404 si usuario no existe
+- [ ] GET con usuario sin tierlists devuelve lista vacía []
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (TierlistServiceTest):**
+- shouldReturnTierlistsOrderedByAnioDesc
+- shouldReturnEmptyList_WhenUserHasNoTierlists
+- shouldThrowNotFound_WhenUserDoesNotExist
+
+---
+
+## 💡 Pistas
+
+1. Usar findByUserIdOrderByAnioDesc() en el repository
+2. El conteo puede ser entries.size() o una query con COUNT
+3. Verificar existencia del usuario antes de buscar tierlists
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-4-soluciones.md → TIER-03",3,High,"backend,api,sprint4"
+"TIER-04: GET /api/users/{userId}/tierlists/{anio} - Detalle con entries",Story,"## 🎯 Objetivo
+Implementar endpoint para obtener una tierlist con todas sus entries.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Response |
+|--------|----------|----------|
+| GET | /api/users/{userId}/tierlists/{anio} | 200 + TierlistDetail |
+
+**TierlistDetail (Record):**
+- id: Long
+- anio: Integer
+- userId: Long
+- userName: String
+- entries: List<TierlistEntryResponse>
+- fechaCreacion: LocalDateTime
+
+**TierlistEntryResponse (Record):**
+- id: Long
+- gameId: Long
+- gameNombre: String (del campo denormalizado)
+- gamePlataforma: String
+- gameCategoria: String
+- rating: Integer
+- anioJugado: Integer
+- tier: String (calculado: S/A/B/C/D según rating)
+
+**Cálculo de Tier:**
+- 10-9: S
+- 8-7: A
+- 6-5: B
+- 4-3: C
+- 2-1: D
+
+**Problema N+1:**
+Si no se optimiza, al acceder a entries y luego a cada game, se hacen N+1 queries.
+Usar @EntityGraph o JOIN FETCH para cargar todo en una query.
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] GET devuelve tierlist con todas sus entries
+- [ ] Entries ordenadas por rating DESC
+- [ ] Cada entry incluye el tier calculado (S/A/B/C/D)
+- [ ] Solo se ejecuta 1 query (verificar en logs)
+- [ ] GET con tierlist inexistente devuelve 404
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (TierlistServiceTest):**
+- shouldReturnTierlistWithEntries
+- shouldCalculateTierCorrectly
+- shouldThrowNotFound_WhenTierlistDoesNotExist
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Switch expressions | JAVA8-A-JAVA17.md - Sección 4 |
+
+---
+
+## 💡 Pistas
+
+1. @EntityGraph(attributePaths = {""entries""}) en el repository
+2. O usar @Query con JOIN FETCH
+3. El tier se calcula en el mapper con switch expression
+4. Los datos del juego vienen de los campos denormalizados, no del Game
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-4-soluciones.md → TIER-04",3,High,"backend,api,sprint4"
+"TIER-05: POST /api/users/{userId}/tierlists/{anio}/entries - Añadir juego",Story,"## 🎯 Objetivo
+Implementar endpoint para añadir un juego a una tierlist.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| POST | /api/users/{userId}/tierlists/{anio}/entries | CreateEntryRequest | 201 + TierlistEntryResponse |
+
+**CreateEntryRequest (Record):**
+- gameId: Long (@NotNull)
+- rating: Integer (@NotNull, @Min=1, @Max=10)
+- anioJugado: Integer (@NotNull, @Min=1970)
+
+**Comportamiento especial:**
+- Si la tierlist no existe para ese año, **crearla automáticamente**
+- Copiar datos del juego a los campos denormalizados de la entry
+
+**Reglas de negocio:**
+- El usuario debe existir
+- El juego debe existir
+- El juego no puede estar ya en la tierlist
+
+---
+
+## ✅ Criterios de aceptación
+
+| Caso | Input | Output |
+|------|-------|--------|
+| Añadir a tierlist existente | POST con tierlist que existe | 201 + Entry |
+| Añadir creando tierlist | POST con año sin tierlist | 201 + Entry (crea tierlist) |
+| Usuario no existe | userId inválido | 404 |
+| Juego no existe | gameId inválido | 404 |
+| Juego duplicado | gameId ya en tierlist | 409 |
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (TierlistServiceTest):**
+- shouldAddEntry_WhenTierlistExists
+- shouldCreateTierlistAndAddEntry_WhenTierlistDoesNotExist
+- shouldCopyGameDataToEntry
+- shouldThrowDuplicate_WhenGameAlreadyInTierlist
+
+---
+
+## 💡 Pistas
+
+1. findByUserIdAndAnio() puede devolver Optional.empty()
+2. Si no existe, crear la tierlist primero
+3. El constructor de TierlistEntry copia todos los datos del Game
+4. Usar el método helper tierlist.addEntry() para mantener sincronización
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-4-soluciones.md → TIER-05",5,High,"backend,api,sprint4"
+"TIER-06: PUT/DELETE entries",Story,"## 🎯 Objetivo
+Implementar endpoints para actualizar y eliminar entries de una tierlist.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| PUT | /api/users/{userId}/tierlists/{anio}/entries/{entryId} | UpdateEntryRequest | 200 + TierlistEntryResponse |
+| DELETE | /api/users/{userId}/tierlists/{anio}/entries/{entryId} | - | 204 |
+
+**UpdateEntryRequest (Record):**
+- rating: Integer (@NotNull, @Min=1, @Max=10)
+- anioJugado: Integer (@NotNull, @Min=1970)
+
+**Nota:** No se puede cambiar el juego, solo rating y año jugado.
+
+---
+
+## ✅ Criterios de aceptación
+
+**PUT:**
+- [ ] Actualiza rating y anioJugado
+- [ ] Devuelve 404 si entry no existe
+- [ ] El tier se recalcula con el nuevo rating
+
+**DELETE:**
+- [ ] Elimina la entry
+- [ ] Devuelve 204
+- [ ] Devuelve 404 si entry no existe
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios:**
+- shouldUpdateEntry_WhenExists
+- shouldDeleteEntry_WhenExists
+- shouldThrowNotFound_WhenEntryDoesNotExist
+
+**Tests de controller:**
+- shouldReturn200_WhenEntryUpdated
+- shouldReturn204_WhenEntryDeleted
+- shouldReturn404_WhenEntryNotFound
+
+---
+
+## 💡 Pistas
+
+1. Verificar que la entry pertenece a la tierlist correcta
+2. Para delete, usar tierlist.removeEntry() o directamente el repository
+3. orphanRemoval=true debería eliminar la entry al quitarla de la lista
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-4-soluciones.md → TIER-06",3,Medium,"backend,api,sprint4"
+"TIER-07: Verificar juego en uso antes de eliminar",Story,"## 🎯 Objetivo
+Modificar GameService.delete() para que no permita eliminar juegos que estén en uso en alguna tierlist.
+
+---
+
+## 📋 Especificación funcional
+
+**Comportamiento actual:** DELETE /api/games/{id} elimina el juego
+
+**Comportamiento nuevo:** 
+- Si el juego está en alguna TierlistEntry, devolver 409 Conflict
+- Si no está en uso, eliminarlo normalmente
+
+**Nueva excepción:**
+- EntityInUseException: Cuando se intenta eliminar algo que está referenciado
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] DELETE /api/games/{id} con juego en uso devuelve 409
+- [ ] DELETE /api/games/{id} sin uso devuelve 204
+- [ ] El mensaje de error indica que el juego está en uso
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (GameServiceTest):**
+- shouldThrowEntityInUse_WhenGameIsInTierlist
+- shouldDeleteGame_WhenNotInUse
+
+---
+
+## 💡 Pistas
+
+1. Añadir existsByGameId(Long gameId) a TierlistEntryRepository
+2. Crear EntityInUseException extends RuntimeException
+3. Añadir handler en GlobalExceptionHandler que devuelva 409
+4. Modificar GameService.delete() para verificar antes de eliminar
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-4-soluciones.md → TIER-07",2,Medium,"backend,api,sprint4"

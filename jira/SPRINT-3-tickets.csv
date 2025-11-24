@@ -1,0 +1,364 @@
+Summary,Issue Type,Description,Story Points,Priority,Labels
+"Sprint 3: Catálogo de Juegos",Epic,"CRUD del catálogo de juegos compartido con relaciones @ManyToOne, paginación y búsqueda avanzada usando JPA Specifications.",,High,epic
+"GAME-01: Crear entidad Game",Story,"## 🎯 Objetivo
+Crear la entidad Game con relación @ManyToOne a Category.
+
+---
+
+## 📋 Especificación funcional
+
+**Entidad Game:**
+- Hereda de BaseEntity
+- nombre: String (máximo 100 caracteres)
+- plataforma: String (máximo 50 caracteres)
+- descripcion: String (máximo 500 caracteres, opcional)
+- anioLanzamiento: Integer
+- category: Category (@ManyToOne)
+
+**Constraints:**
+- Unique compuesto: (nombre + plataforma) - El mismo juego puede existir en diferentes plataformas
+- FK a category (no puede ser null)
+
+**Repository:**
+- Extender JpaRepository
+- Extender JpaSpecificationExecutor<Game> (para filtros dinámicos)
+- existsByNombreAndPlataforma(nombre, plataforma): boolean
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] Entidad Game creada con relación @ManyToOne LAZY a Category
+- [ ] Constraint UNIQUE compuesto en (nombre, plataforma)
+- [ ] GameRepository extiende JpaSpecificationExecutor
+- [ ] Datos de prueba añadidos en data.sql (mínimo 10 juegos)
+
+---
+
+## 🧪 Testing requerido
+
+**Tests de repositorio (GameRepositoryTest):**
+- shouldFindGameById
+- shouldCheckExistsByNombreAndPlataforma
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| @ManyToOne LAZY | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 3 |
+| JpaSpecificationExecutor | Se usará en GAME-05 |
+
+---
+
+## 💡 Pistas
+
+1. @ManyToOne(fetch = FetchType.LAZY) evita cargar la categoría si no se necesita
+2. @JoinColumn(name = ""category_id"") define la FK
+3. @UniqueConstraint en @Table para el unique compuesto
+4. En data.sql, referencia las categorías por su ID
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-3-soluciones.md → GAME-01",3,High,"backend,entity,sprint3"
+"GAME-02: GET /api/games - Listar juegos con paginación",Story,"## 🎯 Objetivo
+Implementar endpoint para listar juegos con paginación y ordenación.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Query Params | Response |
+|--------|----------|--------------|----------|
+| GET | /api/games | page, size, sort | 200 + Page<GameResponse> |
+
+**Parámetros de paginación (proporcionados por Spring):**
+- page: número de página (0-indexed, default 0)
+- size: elementos por página (default 20)
+- sort: campo,dirección (ej: nombre,asc)
+
+**GameResponse (Record):**
+- id: Long
+- nombre: String
+- plataforma: String
+- descripcion: String
+- anioLanzamiento: Integer
+- categoriaId: Long
+- categoriaNombre: String
+- fechaCreacion: LocalDateTime
+
+**Clases a crear:**
+- GameResponse (dto/response)
+- GameMapper (mapper)
+- GameService (service)
+- GameController (controller)
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] GET /api/games devuelve Page con juegos
+- [ ] GET /api/games?page=0&size=5 devuelve 5 elementos
+- [ ] GET /api/games?sort=nombre,asc ordena alfabéticamente
+- [ ] La respuesta incluye metadata de paginación (totalElements, totalPages, etc.)
+- [ ] El GameResponse incluye nombre de la categoría (no solo el ID)
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (GameServiceTest):**
+- shouldReturnPageOfGames
+- shouldReturnEmptyPageWhenNoGames
+
+**Tests de controller (GameControllerTest):**
+- shouldReturn200WithPageOfGames
+- shouldRespectPaginationParameters
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Records | JAVA8-A-JAVA17.md - Sección 1 |
+| Stream.toList() | JAVA8-A-JAVA17.md - Sección 7 |
+
+---
+
+## 💡 Pistas
+
+1. Pageable como parámetro del método del repositorio
+2. Page<T> tiene métodos: getContent(), getTotalElements(), getTotalPages()
+3. El mapper accede a game.getCategory().getNombre() para el nombre de categoría
+4. @PageableDefault(size = 20, sort = ""nombre"") para valores por defecto
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-3-soluciones.md → GAME-02",3,High,"backend,api,sprint3"
+"GAME-03: POST /api/games - Crear juego",Story,"## 🎯 Objetivo
+Implementar endpoint para crear juegos con validación de categoría existente y unicidad.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| POST | /api/games | CreateGameRequest | 201 + GameResponse |
+
+**CreateGameRequest (Record con validaciones):**
+- nombre: String (@NotBlank, @Size max=100)
+- plataforma: String (@NotBlank, @Size max=50)
+- descripcion: String (@Size max=500, opcional)
+- anioLanzamiento: Integer (@NotNull, @Min=1970, @Max=2030)
+- categoriaId: Long (@NotNull)
+
+**Reglas de negocio:**
+- La categoría debe existir
+- La combinación nombre+plataforma debe ser única
+- Se aplica trim() a nombre y plataforma
+
+**Nueva excepción necesaria:**
+- RelatedEntityNotFoundException: Para cuando la FK no existe (categoría)
+
+---
+
+## ✅ Criterios de aceptación
+
+| Caso | Input | Output esperado |
+|------|-------|-----------------|
+| Juego válido | Request completo válido | 201 + GameResponse |
+| Categoría no existe | categoriaId: 999 | 404 + NOT_FOUND |
+| Duplicado | nombre+plataforma ya existe | 409 + DUPLICATE_ENTITY |
+| Validación falla | nombre vacío | 400 + VALIDATION_ERROR |
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (GameServiceTest):**
+- shouldCreateGame_WhenValid
+- shouldThrowNotFound_WhenCategoryDoesNotExist
+- shouldThrowDuplicate_WhenGameAlreadyExists
+
+**Tests de controller (GameControllerTest):**
+- shouldReturn201_WhenGameCreated
+- shouldReturn404_WhenCategoryNotFound
+- shouldReturn409_WhenDuplicateGame
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Records con validaciones | JAVA8-A-JAVA17.md - Sección 1 |
+| jakarta.validation | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 4 |
+
+---
+
+## 💡 Pistas
+
+1. Primero verificar que la categoría existe con categoryRepository.findById()
+2. Luego verificar unicidad con existsByNombreAndPlataforma()
+3. RelatedEntityNotFoundException puede extender RuntimeException
+4. Añadir handler en GlobalExceptionHandler que devuelva 404
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-3-soluciones.md → GAME-03",5,High,"backend,api,sprint3"
+"GAME-04: GET/PUT/DELETE /api/games/{id}",Story,"## 🎯 Objetivo
+Completar el CRUD de juegos con operaciones por ID.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| GET | /api/games/{id} | - | 200 + GameResponse |
+| PUT | /api/games/{id} | UpdateGameRequest | 200 + GameResponse |
+| DELETE | /api/games/{id} | - | 204 No Content |
+
+**UpdateGameRequest (Record):**
+- nombre: String (@NotBlank, @Size max=100)
+- plataforma: String (@NotBlank, @Size max=50)
+- descripcion: String (@Size max=500, opcional)
+- anioLanzamiento: Integer (@NotNull, @Min=1970, @Max=2030)
+- categoriaId: Long (@NotNull)
+
+**Reglas para PUT:**
+- El juego debe existir
+- La nueva categoría debe existir
+- La nueva combinación nombre+plataforma no puede estar en uso por OTRO juego
+
+---
+
+## ✅ Criterios de aceptación
+
+**GET:**
+- [ ] GET /api/games/1 devuelve el juego
+- [ ] GET /api/games/999 devuelve 404
+
+**PUT:**
+- [ ] PUT actualiza todos los campos incluyendo categoría
+- [ ] PUT con categoría inexistente devuelve 404
+- [ ] PUT con nombre+plataforma duplicado (de otro) devuelve 409
+
+**DELETE:**
+- [ ] DELETE /api/games/1 devuelve 204
+- [ ] DELETE /api/games/999 devuelve 404
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (GameServiceTest):**
+- shouldReturnGame_WhenIdExists
+- shouldUpdateGame_WhenValid
+- shouldDeleteGame_WhenExists
+- shouldThrowNotFound_WhenGameDoesNotExist
+
+**Tests de controller (GameControllerTest):**
+- shouldReturn200_WhenGameFound
+- shouldReturn200_WhenGameUpdated
+- shouldReturn204_WhenGameDeleted
+- shouldReturn404_WhenGameNotFound
+
+---
+
+## 💡 Pistas
+
+1. Para verificar duplicado en update: existsByNombreAndPlataformaAndIdNot(nombre, plataforma, id)
+2. Añadir este método al GameRepository
+3. En el mapper, para update necesitas recibir la Category ya cargada
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-3-soluciones.md → GAME-04",3,High,"backend,api,sprint3"
+"GAME-05: GET /api/games/search - Búsqueda con filtros",Story,"## 🎯 Objetivo
+Implementar búsqueda avanzada de juegos usando JPA Specifications para filtros dinámicos.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Query Params | Response |
+|--------|----------|--------------|----------|
+| GET | /api/games/search | nombre, plataforma, categoriaId, anioMin, anioMax + paginación | 200 + Page<GameResponse> |
+
+**Filtros disponibles (todos opcionales):**
+- nombre: búsqueda parcial, case-insensitive (LIKE %nombre%)
+- plataforma: búsqueda exacta
+- categoriaId: filtrar por categoría
+- anioMin: año de lanzamiento >= anioMin
+- anioMax: año de lanzamiento <= anioMax
+
+**Comportamiento:**
+- Los filtros se combinan con AND
+- Si no hay filtros, devuelve todos los juegos (paginados)
+- Soporta paginación y ordenación
+
+**Clase a crear:**
+- GameSpecification (specification/)
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] GET /api/games/search?nombre=zelda encuentra juegos con ""zelda"" en el nombre
+- [ ] GET /api/games/search?plataforma=PC filtra por plataforma exacta
+- [ ] GET /api/games/search?categoriaId=1 filtra por categoría
+- [ ] GET /api/games/search?anioMin=2020&anioMax=2023 filtra por rango de años
+- [ ] GET /api/games/search?nombre=mario&plataforma=Nintendo combina filtros
+- [ ] GET /api/games/search sin parámetros devuelve todos paginados
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (GameServiceTest):**
+- shouldSearchByNombrePartial
+- shouldSearchByPlataformaExact
+- shouldSearchByCategoriaId
+- shouldSearchByAnioRange
+- shouldCombineMultipleFilters
+- shouldReturnAllWhenNoFilters
+
+**Tests de integración (GameSearchIT):**
+- shouldFindGamesMatchingFilters
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Criteria API | Concepto JPA estándar |
+| var | JAVA8-A-JAVA17.md - Sección 6 |
+
+---
+
+## 💡 Pistas
+
+1. Specification<Game> es una interfaz funcional con método toPredicate()
+2. Usa CriteriaBuilder para construir condiciones (like, equal, greaterThanOrEqualTo)
+3. cb.lower() para búsqueda case-insensitive
+4. Combina predicados con cb.and()
+5. El controller recibe los filtros como @RequestParam(required = false)
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-3-soluciones.md → GAME-05",5,High,"backend,api,specification,sprint3"

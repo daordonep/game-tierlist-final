@@ -1,0 +1,451 @@
+Summary,Issue Type,Description,Story Points,Priority,Labels
+"Sprint 1: Setup y Fundamentos",Epic,"Configuración inicial del proyecto Spring Boot 3 con Java 17. Incluye estructura, configuración, manejo de excepciones, documentación de API y catálogo de categorías de solo lectura.",,High,epic
+"SETUP-01: Crear proyecto Spring Boot 3",Story,"## 🎯 Objetivo
+Crear el proyecto base con Spring Boot 3.4.12 y Java 17, con todas las dependencias necesarias y estructura de paquetes.
+
+---
+
+## 📋 Especificación funcional
+
+**Tecnologías:**
+- Java 17
+- Spring Boot 3.4.12
+- Maven
+
+**Dependencias requeridas:**
+- spring-boot-starter-web
+- spring-boot-starter-data-jpa
+- spring-boot-starter-validation
+- h2 (runtime, desarrollo)
+- postgresql (runtime, producción)
+- lombok
+- springdoc-openapi-starter-webmvc-ui (2.3.0+)
+- spring-boot-starter-test (test)
+
+**Estructura de paquetes:**
+```
+com.gametierlist/
+├── config/
+├── controller/
+├── dto/request/
+├── dto/response/
+├── entity/
+├── exception/
+├── mapper/
+├── repository/
+├── service/
+└── specification/
+```
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] Proyecto creado con Spring Initializr o manualmente
+- [ ] pom.xml con todas las dependencias listadas
+- [ ] Estructura de paquetes creada (pueden estar vacíos)
+- [ ] application.yml con configuración base (nombre app, puerto, perfil activo)
+- [ ] La aplicación arranca sin errores: mvn spring-boot:run
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Java 17 requerido | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 2 |
+| springdoc v2 | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 9 |
+
+---
+
+## 💡 Pistas
+
+1. Usa https://start.spring.io para generar el proyecto base
+2. En pom.xml: <java.version>17</java.version>
+3. El application.yml básico solo necesita nombre de app y puerto
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-1-soluciones.md → SETUP-01",3,High,"backend,setup,sprint1"
+"SETUP-02: Configurar perfil de desarrollo (H2)",Story,"## 🎯 Objetivo
+Configurar H2 como base de datos en memoria para desarrollo, con consola web habilitada y logging de SQL.
+
+---
+
+## 📋 Especificación funcional
+
+**Archivo:** application-dev.yml
+
+**Configuración requerida:**
+- Datasource H2 en memoria: jdbc:h2:mem:gametierlist
+- Consola H2 habilitada en /h2-console
+- DDL auto en create-drop (recrea esquema cada reinicio)
+- SQL logging habilitado para debugging
+- Ejecución de data.sql al arrancar
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] Archivo application-dev.yml creado en src/main/resources
+- [ ] H2 console accesible en http://localhost:8080/h2-console
+- [ ] Conexión funciona con JDBC URL: jdbc:h2:mem:gametierlist
+- [ ] Los logs muestran las queries SQL formateadas
+- [ ] El perfil dev se activa por defecto
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Configuración JPA | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 5 |
+| Hibernate 6 logging | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 9 |
+
+---
+
+## 💡 Pistas
+
+1. spring.profiles.active: dev en application.yml activa el perfil
+2. Para ver parámetros de queries: org.hibernate.orm.jdbc.bind: TRACE
+3. sql.init.mode: always ejecuta data.sql en cada arranque
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-1-soluciones.md → SETUP-02",2,High,"backend,config,sprint1"
+"SETUP-03: Configurar CORS",Story,"## 🎯 Objetivo
+Configurar CORS para permitir peticiones desde el frontend local.
+
+---
+
+## 📋 Especificación funcional
+
+**Clase:** CorsConfig.java en paquete config
+
+**Configuración:**
+- Rutas: /api/**
+- Orígenes permitidos: * (desarrollo)
+- Métodos: GET, POST, PUT, DELETE, OPTIONS
+- Headers: todos
+- Max age: 3600 segundos
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] Clase CorsConfig creada con @Configuration
+- [ ] Bean WebMvcConfigurer configurado
+- [ ] El frontend puede hacer peticiones sin errores de CORS
+- [ ] Las peticiones OPTIONS (preflight) responden correctamente
+
+---
+
+## 💡 Pistas
+
+1. Implementa WebMvcConfigurer como bean anónimo o como lambda
+2. registry.addMapping() define las rutas afectadas
+3. En producción cambiarías allowedOrigins(""*"") por dominios específicos
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-1-soluciones.md → SETUP-03",1,High,"backend,config,sprint1"
+"SETUP-04: Configurar Swagger/OpenAPI",Story,"## 🎯 Objetivo
+Configurar SpringDoc OpenAPI para documentación automática de la API.
+
+---
+
+## 📋 Especificación funcional
+
+**Clase:** OpenApiConfig.java en paquete config
+
+**Configuración:**
+- Título: Game Tierlist API
+- Versión: 1.0
+- Descripción del proyecto
+- Swagger UI accesible en /swagger-ui.html
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] Swagger UI accesible en http://localhost:8080/swagger-ui.html
+- [ ] Muestra título y descripción configurados
+- [ ] Los endpoints (cuando existan) aparecerán agrupados por tags
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| springdoc v2 | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 9 |
+
+---
+
+## 💡 Pistas
+
+1. La dependencia ya está en el pom.xml del SETUP-01
+2. Usa clases de io.swagger.v3.oas.models
+3. Los tags se definen en los controllers con @Tag
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-1-soluciones.md → SETUP-04",2,Medium,"backend,config,swagger,sprint1"
+"SETUP-05: Crear manejador global de excepciones",Story,"## 🎯 Objetivo
+Implementar manejo centralizado de errores para devolver respuestas JSON consistentes.
+
+---
+
+## 📋 Especificación funcional
+
+**Clases a crear:**
+
+1. **ErrorResponse** (Record) - DTO de respuesta de error
+   - code: String (ej: NOT_FOUND, VALIDATION_ERROR)
+   - message: String
+   - timestamp: LocalDateTime
+   - path: String
+
+2. **EntityNotFoundException** - Cuando no se encuentra un recurso (404)
+
+3. **DuplicateEntityException** - Cuando hay conflicto de unicidad (409)
+
+4. **GlobalExceptionHandler** - Captura y transforma excepciones
+
+**Mapeo de excepciones:**
+
+| Excepción | HTTP Status | Código |
+|-----------|-------------|--------|
+| EntityNotFoundException | 404 | NOT_FOUND |
+| DuplicateEntityException | 409 | DUPLICATE_ENTITY |
+| MethodArgumentNotValidException | 400 | VALIDATION_ERROR |
+| Exception (genérica) | 500 | INTERNAL_ERROR |
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] ErrorResponse implementado como Record de Java 17
+- [ ] Todas las excepciones devuelven JSON con el mismo formato
+- [ ] Los errores de validación muestran qué campos fallaron
+- [ ] El path incluye la URI de la petición que falló
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (GlobalExceptionHandlerTest):**
+- Verificar que cada excepción devuelve el status HTTP correcto
+- Verificar que el ErrorResponse tiene el formato esperado
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Records | JAVA8-A-JAVA17.md - Sección 1 |
+| jakarta.servlet | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 1 |
+
+---
+
+## 💡 Pistas
+
+1. Record puede tener constructor compacto para añadir timestamp automáticamente
+2. @RestControllerAdvice captura excepciones de todos los controllers
+3. MethodArgumentNotValidException.getBindingResult() tiene los errores
+4. HttpServletRequest.getRequestURI() da el path
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-1-soluciones.md → SETUP-05",3,High,"backend,exception,sprint1"
+"SETUP-06: Crear BaseEntity con auditoría",Story,"## 🎯 Objetivo
+Crear clase base que todas las entidades hereden, con ID y campos de auditoría automáticos.
+
+---
+
+## 📋 Especificación funcional
+
+**Clases a crear:**
+
+1. **JpaAuditingConfig** - Habilita auditoría JPA con @EnableJpaAuditing
+
+2. **BaseEntity** - Clase abstracta con:
+   - id: Long (autogenerado con IDENTITY)
+   - createdAt: LocalDateTime (se rellena al crear, no modificable)
+   - updatedAt: LocalDateTime (se actualiza en cada modificación)
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] @EnableJpaAuditing configurado en clase de configuración
+- [ ] BaseEntity usa @MappedSuperclass
+- [ ] createdAt se rellena automáticamente al persistir
+- [ ] updatedAt se actualiza automáticamente al modificar
+- [ ] createdAt tiene updatable = false
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| GenerationType | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 9 |
+| jakarta.persistence | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 1 |
+
+---
+
+## 💡 Pistas
+
+1. @MappedSuperclass indica que no es tabla pero sus campos se heredan
+2. @EntityListeners(AuditingEntityListener.class) activa la auditoría
+3. @CreatedDate y @LastModifiedDate son de Spring Data
+4. Usa Lombok @Getter @Setter para reducir boilerplate
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-1-soluciones.md → SETUP-06",2,High,"backend,entity,sprint1"
+"CAT-01: Crear entidad Category y datos iniciales",Story,"## 🎯 Objetivo
+Crear la entidad Category y cargar las 12 categorías de juegos como datos iniciales.
+
+---
+
+## 📋 Especificación funcional
+
+**Entidad Category:**
+- Hereda de BaseEntity
+- nombre: String (único, máximo 50 caracteres)
+- descripcion: String (máximo 255 caracteres, opcional)
+
+**Datos iniciales (12 categorías):**
+Acción, Aventura, Carreras, Deportes, Estrategia, Indie, Plataformas, Puzzle, RPG, Shooter, Simulación, Terror
+
+**Repository:**
+- findAllByOrderByNombreAsc()
+- findByNombre(String nombre)
+- existsByNombre(String nombre)
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] Entidad Category creada heredando de BaseEntity
+- [ ] CategoryRepository creado con los métodos especificados
+- [ ] Archivo data.sql con INSERT de las 12 categorías
+- [ ] Al arrancar, verificar en H2 console que las categorías existen
+
+---
+
+## 🧪 Testing requerido
+
+**Tests de repositorio (CategoryRepositoryTest con @DataJpaTest):**
+- shouldFindAllCategoriesOrderedByName
+- shouldFindByNombre
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| jakarta.persistence | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 1 |
+| @DataJpaTest | TESTING.md - Sección 6 |
+
+---
+
+## 💡 Pistas
+
+1. @Table(name = ""category"") define el nombre de la tabla
+2. @Column(unique = true) para el constraint de unicidad
+3. data.sql se ejecuta después de crear tablas con ddl-auto: create-drop
+4. Spring Data genera implementación de métodos por convención de nombres
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-1-soluciones.md → CAT-01",2,High,"backend,entity,sprint1"
+"CAT-02: Crear endpoints de categorías",Story,"## 🎯 Objetivo
+Implementar endpoints de solo lectura para listar y obtener categorías.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Response |
+|--------|----------|----------|
+| GET | /api/categories | 200 + Lista de CategoryResponse |
+| GET | /api/categories/{id} | 200 + CategoryResponse |
+| GET | /api/categories/{id} (no existe) | 404 + ErrorResponse |
+
+**CategoryResponse (Record):**
+- id: Long
+- nombre: String
+- descripcion: String
+
+**Clases a crear:**
+- CategoryResponse (dto/response)
+- CategoryMapper (mapper)
+- CategoryService (service)
+- CategoryController (controller)
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] GET /api/categories devuelve las 12 categorías ordenadas alfabéticamente
+- [ ] GET /api/categories/1 devuelve la categoría con id 1
+- [ ] GET /api/categories/999 devuelve 404 con ErrorResponse
+- [ ] Endpoints documentados en Swagger con @Tag y @Operation
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (CategoryServiceTest):**
+- shouldReturnAllCategoriesOrdered
+- shouldReturnCategoryById
+- shouldThrowNotFound_WhenCategoryDoesNotExist
+
+**Tests de controller (CategoryControllerTest con @WebMvcTest):**
+- shouldReturn200WithCategories
+- shouldReturn404WhenCategoryNotFound
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Records | JAVA8-A-JAVA17.md - Sección 1 |
+| Stream.toList() | JAVA8-A-JAVA17.md - Sección 7 |
+| @WebMvcTest | TESTING.md - Sección 7 |
+| AssertJ | TESTING.md - Sección 4 |
+
+---
+
+## 💡 Pistas
+
+1. Patrón: Controller → Service → Repository → Entity
+2. El Mapper convierte Entity ↔ Response
+3. @Tag(name = ""Categories"") agrupa endpoints en Swagger
+4. @Transactional(readOnly = true) en el Service para queries
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-1-soluciones.md → CAT-02",3,High,"backend,api,sprint1"

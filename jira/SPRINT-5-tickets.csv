@@ -1,0 +1,362 @@
+Summary,Issue Type,Description,Story Points,Priority,Labels
+"Sprint 5: Explorar y Comparar",Epic,"Funcionalidades avanzadas para explorar tierlists de todos los usuarios, buscar entries con filtros, comparar valoraciones entre usuarios y ver estadísticas agregadas.",,High,epic
+"EXPL-01: GET /api/tierlists - Listar todas las tierlists",Story,"## 🎯 Objetivo
+Implementar endpoint para explorar todas las tierlists de todos los usuarios.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Query Params | Response |
+|--------|----------|--------------|----------|
+| GET | /api/tierlists | page, size, sort, anio | 200 + Page<TierlistOverview> |
+
+**TierlistOverview (Record):**
+- id: Long
+- userId: Long
+- userName: String
+- anio: Integer
+- totalJuegos: Integer
+- fechaCreacion: LocalDateTime
+
+**Filtro opcional:**
+- anio: filtrar por año específico
+
+**Ordenación por defecto:** anio DESC, userName ASC
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] GET /api/tierlists devuelve todas las tierlists paginadas
+- [ ] GET /api/tierlists?anio=2024 filtra por año
+- [ ] Incluye datos del usuario (nombre) sin N+1
+- [ ] Ordenación por defecto: año descendente
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (ExploreServiceTest):**
+- shouldReturnAllTierlistsPaginated
+- shouldFilterByAnio
+
+**Tests de controller (ExploreControllerTest):**
+- shouldReturn200WithTierlists
+
+---
+
+## 💡 Pistas
+
+1. Crear ExploreService y ExploreController separados
+2. Usar @EntityGraph o JOIN FETCH para cargar User
+3. Añadir método en TierlistRepository con filtro opcional
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-5-soluciones.md → EXPL-01",3,High,"backend,api,sprint5"
+"EXPL-02: GET /api/tierlists/entries - Buscar entries con filtros",Story,"## 🎯 Objetivo
+Implementar búsqueda avanzada de entries usando Specifications (reutilizando el patrón de GAME-05).
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Query Params | Response |
+|--------|----------|--------------|----------|
+| GET | /api/tierlists/entries | múltiples filtros + paginación | 200 + Page<TierlistEntryWithUser> |
+
+**Filtros disponibles (todos opcionales):**
+- userId: filtrar por usuario
+- anio: filtrar por año de la tierlist
+- gameNombre: búsqueda parcial en nombre del juego
+- gameCategoria: filtrar por categoría
+- plataforma: filtrar por plataforma
+- ratingMin: rating >= ratingMin
+- ratingMax: rating <= ratingMax
+
+**TierlistEntryWithUser (Record):**
+- entryId: Long
+- userId: Long
+- userName: String
+- anio: Integer
+- gameNombre: String
+- gamePlataforma: String
+- gameCategoria: String
+- rating: Integer
+- tier: String
+
+**Nota:** Los filtros usan los campos denormalizados de TierlistEntry.
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] Todos los filtros funcionan individualmente
+- [ ] Los filtros se combinan con AND
+- [ ] Búsqueda de nombre es parcial y case-insensitive
+- [ ] Sin filtros devuelve todas las entries paginadas
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (ExploreServiceTest):**
+- shouldSearchEntriesByGameNombre
+- shouldSearchEntriesByRatingRange
+- shouldCombineFilters
+
+**Tests de integración (ExploreSearchIT):**
+- shouldFindEntriesMatchingFilters
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Specifications | Ver GAME-05 como referencia |
+
+---
+
+## 💡 Pistas
+
+1. Crear TierlistEntrySpecification similar a GameSpecification
+2. Los campos denormalizados permiten filtrar sin JOINs
+3. Para userName necesitas JOIN con tierlist.user
+4. TierlistEntryRepository ya extiende JpaSpecificationExecutor
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-5-soluciones.md → EXPL-02",5,High,"backend,api,specification,sprint5"
+"EXPL-03: GET /api/tierlists/compare - Comparar tierlists",Story,"## 🎯 Objetivo
+Implementar endpoint para comparar las tierlists de múltiples usuarios para un año dado.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Query Params | Response |
+|--------|----------|--------------|----------|
+| GET | /api/tierlists/compare | userIds, anio | 200 + TierlistComparison |
+
+**Parámetros:**
+- userIds: lista de IDs separados por coma (mínimo 2)
+- anio: año a comparar
+
+**TierlistComparison (Record):**
+- anio: Integer
+- users: List<ComparisonUser>
+- commonGames: List<CommonGame> (juegos que tienen TODOS)
+- uniqueGames: Map<Long, List<UniqueGame>> (juegos únicos por userId)
+
+**ComparisonUser (Record):**
+- userId: Long
+- userName: String
+- totalJuegos: Integer
+
+**CommonGame (Record):**
+- gameNombre: String
+- gamePlataforma: String
+- ratings: Map<Long, Integer> (userId -> rating)
+- averageRating: Double
+- maxDifference: Integer (diferencia entre rating más alto y más bajo)
+
+**UniqueGame (Record):**
+- gameNombre: String
+- gamePlataforma: String
+- rating: Integer
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] GET /api/tierlists/compare?userIds=1,2&anio=2024 funciona
+- [ ] commonGames contiene solo juegos que TODOS los usuarios tienen
+- [ ] uniqueGames contiene juegos que solo tiene UN usuario
+- [ ] GET con menos de 2 usuarios devuelve 400
+- [ ] GET con usuario inexistente devuelve 404
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (ExploreServiceTest):**
+- shouldCompareAndFindCommonGames
+- shouldCompareAndFindUniqueGames
+- shouldCalculateMaxDifference
+- shouldThrowWhenLessThanTwoUsers
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Stream API | JAVA8-A-JAVA17.md - Sección 9 |
+| var | JAVA8-A-JAVA17.md - Sección 6 |
+
+---
+
+## 💡 Pistas
+
+1. Cargar las tierlists de todos los usuarios para ese año
+2. Agrupar entries por gameId (o gameNombre+gamePlataforma)
+3. Un juego es ""común"" si aparece en TODAS las tierlists
+4. Un juego es ""único"" si aparece en exactamente UNA tierlist
+5. Usar Streams para agrupar y filtrar
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-5-soluciones.md → EXPL-03",8,High,"backend,api,sprint5"
+"EXPL-04: GET /api/tierlists/stats - Estadísticas agregadas",Story,"## 🎯 Objetivo
+Implementar endpoint para obtener estadísticas agregadas de todas las tierlists.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Query Params | Response |
+|--------|----------|--------------|----------|
+| GET | /api/tierlists/stats | anio (opcional) | 200 + TierlistStats |
+
+**TierlistStats (Record):**
+- totalEntries: Long
+- averageRating: Double
+- categoryStats: List<CategoryStats>
+- topGames: List<TopGame>
+- activeUsers: List<ActiveUser>
+
+**CategoryStats (Record):**
+- categoria: String
+- totalJuegos: Integer
+- averageRating: Double
+
+**TopGame (Record):**
+- gameNombre: String
+- gamePlataforma: String
+- averageRating: Double
+- timesRated: Integer
+
+**ActiveUser (Record):**
+- userId: Long
+- userName: String
+- totalGamesRated: Integer
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] categoryStats muestra promedio por categoría ordenado por promedio DESC
+- [ ] topGames muestra los 10 juegos mejor valorados (promedio)
+- [ ] activeUsers muestra los 5 usuarios más activos
+- [ ] GET /api/tierlists/stats?anio=2024 filtra por año
+- [ ] GET sin filtro devuelve estadísticas globales
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (ExploreServiceTest):**
+- shouldCalculateStatsByCategory
+- shouldReturnTopGames
+- shouldReturnActiveUsers
+- shouldFilterStatsByAnio
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Collectors.groupingBy | JAVA8-A-JAVA17.md - Sección 9 |
+| Collectors.averagingDouble | Stream API |
+
+---
+
+## 💡 Pistas
+
+1. Puedes usar JPQL con agregaciones: SELECT AVG(e.rating), e.gameCategoria FROM TierlistEntry e GROUP BY e.gameCategoria
+2. O hacerlo en Java con Streams después de cargar los datos
+3. Para topGames, agrupar por gameNombre+gamePlataforma y calcular promedio
+4. Limitar resultados: .limit(10) en streams o LIMIT en JPQL
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-5-soluciones.md → EXPL-04",5,Medium,"backend,api,jpql,sprint5"
+"EXPL-05: Verificación final del proyecto",Story,"## 🎯 Objetivo
+Verificar que todas las funcionalidades están completas y funcionando correctamente.
+
+---
+
+## 📋 Checklist de verificación
+
+### Categorías
+- [ ] GET /api/categories - Lista todas
+- [ ] GET /api/categories/{id} - Detalle
+
+### Usuarios
+- [ ] GET /api/users - Lista todos
+- [ ] GET /api/users/{id} - Detalle
+- [ ] POST /api/users - Crear con validaciones
+- [ ] PUT /api/users/{id} - Actualizar
+- [ ] DELETE /api/users/{id} - Eliminar
+
+### Juegos
+- [ ] GET /api/games - Lista paginada
+- [ ] GET /api/games/{id} - Detalle
+- [ ] POST /api/games - Crear con FK a categoría
+- [ ] PUT /api/games/{id} - Actualizar
+- [ ] DELETE /api/games/{id} - Verificar si está en uso
+- [ ] GET /api/games/search - Filtros funcionan
+
+### Tierlists
+- [ ] POST /api/users/{userId}/tierlists - Crear
+- [ ] GET /api/users/{userId}/tierlists - Listar del usuario
+- [ ] GET /api/users/{userId}/tierlists/{anio} - Detalle con entries
+- [ ] POST .../entries - Añadir juego
+- [ ] PUT .../entries/{id} - Actualizar rating
+- [ ] DELETE .../entries/{id} - Eliminar entry
+
+### Explorar
+- [ ] GET /api/tierlists - Todas las tierlists
+- [ ] GET /api/tierlists/entries - Búsqueda con filtros
+- [ ] GET /api/tierlists/compare - Comparación funciona
+- [ ] GET /api/tierlists/stats - Estadísticas correctas
+
+### Técnico
+- [ ] Swagger UI muestra todos los endpoints
+- [ ] Los errores devuelven JSON consistente
+- [ ] Los tests pasan: mvn test
+- [ ] La aplicación arranca sin errores
+
+---
+
+## 🧪 Test de humo sugerido
+
+1. Crear 2-3 usuarios
+2. Crear varios juegos de diferentes categorías
+3. Crear tierlists para los usuarios
+4. Añadir juegos a las tierlists con diferentes ratings
+5. Probar la comparación entre usuarios
+6. Verificar las estadísticas
+
+---
+
+## 🎉 ¡Proyecto completado!
+
+Si todas las casillas están marcadas, has completado el proyecto Game Tierlist con:
+- Java 17 (Records, Pattern Matching, Switch Expressions)
+- Spring Boot 3
+- JPA con relaciones, cascade y campos denormalizados
+- Paginación y Specifications
+- Testing unitario y de integración
+- Manejo de errores centralizado",0,Low,"documentation,sprint5"

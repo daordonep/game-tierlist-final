@@ -1,0 +1,383 @@
+Summary,Issue Type,Description,Story Points,Priority,Labels
+"Sprint 2: Gestión de Usuarios",Epic,"CRUD completo de usuarios con validaciones, excepciones personalizadas y testing unitario e integración.",,High,epic
+"USER-01: Crear entidad User",Story,"## 🎯 Objetivo
+Crear la entidad User que representa a los usuarios de la aplicación.
+
+---
+
+## 📋 Especificación funcional
+
+**Entidad User:**
+- Hereda de BaseEntity
+- nombre: String (único, entre 2 y 50 caracteres)
+
+**Tabla:** app_user (no usar ""user"" porque es palabra reservada en SQL)
+
+**Repository:**
+- findByNombre(String nombre): Optional<User>
+- existsByNombre(String nombre): boolean
+- findAllByOrderByNombreAsc(): List<User>
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] Entidad User creada heredando de BaseEntity
+- [ ] Tabla nombrada como app_user
+- [ ] Constraint UNIQUE en el campo nombre
+- [ ] UserRepository creado con los métodos especificados
+- [ ] Al arrancar, no hay errores de mapeo JPA
+
+---
+
+## 🧪 Testing requerido
+
+**Tests de repositorio (UserRepositoryTest con @DataJpaTest):**
+- shouldFindByNombre
+- shouldReturnTrueWhenUserExists
+- shouldFindAllUsersOrderedByName
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| jakarta.persistence | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 1 |
+| @DataJpaTest | TESTING.md - Sección 6 |
+
+---
+
+## 💡 Pistas
+
+1. @Table(name = ""app_user"") evita conflicto con palabra reservada
+2. La constraint unique se puede definir con @Column(unique = true)
+3. Spring Data genera implementación por convención de nombres
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-2-soluciones.md → USER-01",2,High,"backend,entity,sprint2"
+"USER-02: GET /api/users - Listar usuarios",Story,"## 🎯 Objetivo
+Implementar endpoint para listar todos los usuarios ordenados alfabéticamente.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Response |
+|--------|----------|----------|
+| GET | /api/users | 200 + Lista de UserResponse |
+
+**UserResponse (Record):**
+- id: Long
+- nombre: String
+- fechaCreacion: LocalDateTime
+
+**Clases a crear:**
+- UserResponse (dto/response)
+- UserMapper (mapper)
+- UserService (service)
+- UserController (controller)
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] GET /api/users devuelve lista de usuarios ordenados por nombre
+- [ ] Si no hay usuarios, devuelve lista vacía (no 404)
+- [ ] UserResponse incluye fechaCreacion del BaseEntity
+- [ ] Endpoint documentado en Swagger con @Tag y @Operation
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (UserServiceTest):**
+- shouldReturnAllUsersOrdered
+- shouldReturnEmptyListWhenNoUsers
+
+**Tests de controller (UserControllerTest):**
+- shouldReturn200WithUsers
+- shouldReturn200WithEmptyList
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Records | JAVA8-A-JAVA17.md - Sección 1 |
+| Stream.toList() | JAVA8-A-JAVA17.md - Sección 7 |
+
+---
+
+## 💡 Pistas
+
+1. El mapper accede a getCreatedAt() de BaseEntity para fechaCreacion
+2. @Transactional(readOnly = true) en el Service para operaciones de lectura
+3. Lista vacía es válida, no lances excepción si no hay usuarios
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-2-soluciones.md → USER-02",2,High,"backend,api,sprint2"
+"USER-03: POST /api/users - Crear usuario",Story,"## 🎯 Objetivo
+Implementar endpoint para crear usuarios con validaciones y manejo de duplicados.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| POST | /api/users | CreateUserRequest | 201 + UserResponse |
+
+**CreateUserRequest (Record con validaciones):**
+- nombre: String (@NotBlank, @Size min=2 max=50)
+
+**Reglas de negocio:**
+- El nombre es obligatorio y debe tener entre 2 y 50 caracteres
+- El nombre debe ser único (case sensitive)
+- Los espacios al inicio/final se eliminan automáticamente (trim)
+
+---
+
+## ✅ Criterios de aceptación
+
+| Caso | Input | Output esperado |
+|------|-------|-----------------|
+| Usuario válido | {""nombre"": ""Carlos""} | 201 + UserResponse con id |
+| Nombre vacío | {""nombre"": """"} | 400 + VALIDATION_ERROR |
+| Nombre muy corto | {""nombre"": ""A""} | 400 + VALIDATION_ERROR |
+| Nombre muy largo | {""nombre"": ""X"" * 51} | 400 + VALIDATION_ERROR |
+| Nombre duplicado | {""nombre"": ""Carlos""} (existe) | 409 + DUPLICATE_ENTITY |
+| Nombre con espacios | {""nombre"": ""  Carlos  ""} | 201 + nombre=""Carlos"" |
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (UserServiceTest):**
+- shouldCreateUser_WhenNameIsUnique
+- shouldThrowDuplicateException_WhenNameExists
+- shouldTrimSpaces_WhenNameHasSpaces
+
+**Tests de controller (UserControllerTest):**
+- shouldReturn201_WhenValidRequest
+- shouldReturn400_WhenNameIsBlank
+- shouldReturn400_WhenNameTooShort
+- shouldReturn409_WhenNameIsDuplicate
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Records con validaciones | JAVA8-A-JAVA17.md - Sección 1 |
+| jakarta.validation | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 4 |
+| AssertJ excepciones | TESTING.md - Sección 4 |
+
+---
+
+## 💡 Pistas
+
+1. @Valid en el parámetro del controller activa las validaciones
+2. Aplica trim() al nombre ANTES de verificar duplicados
+3. ResponseEntity.status(HttpStatus.CREATED) para devolver 201
+4. El mapper debe aplicar trim() al convertir request a entity
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-2-soluciones.md → USER-03",3,High,"backend,api,sprint2"
+"USER-04: GET /api/users/{id} - Obtener usuario por ID",Story,"## 🎯 Objetivo
+Implementar endpoint para obtener un usuario específico por su ID.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Response |
+|--------|----------|----------|
+| GET | /api/users/{id} | 200 + UserResponse |
+| GET | /api/users/{id} (no existe) | 404 + ErrorResponse |
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] GET /api/users/1 devuelve el usuario con id 1
+- [ ] GET /api/users/999 devuelve 404 con código NOT_FOUND
+- [ ] El ErrorResponse incluye mensaje descriptivo con el id buscado
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (UserServiceTest):**
+- shouldReturnUser_WhenIdExists
+- shouldThrowNotFound_WhenIdDoesNotExist
+
+**Tests de controller (UserControllerTest):**
+- shouldReturn200_WhenUserExists
+- shouldReturn404_WhenUserNotFound
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Optional.orElseThrow | JAVA8-A-JAVA17.md - Sección 8 |
+
+---
+
+## 💡 Pistas
+
+1. @PathVariable Long id captura el parámetro de la URL
+2. repository.findById() devuelve Optional<User>
+3. Usa orElseThrow con EntityNotFoundException
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-2-soluciones.md → USER-04",1,High,"backend,api,sprint2"
+"USER-05: PUT /api/users/{id} - Actualizar usuario",Story,"## 🎯 Objetivo
+Implementar endpoint para actualizar el nombre de un usuario existente.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| PUT | /api/users/{id} | UpdateUserRequest | 200 + UserResponse |
+
+**UpdateUserRequest (Record con validaciones):**
+- nombre: String (@NotBlank, @Size min=2 max=50)
+
+**Reglas de negocio:**
+- El usuario debe existir
+- El nuevo nombre no puede estar en uso por OTRO usuario
+- Si el nombre es igual al actual, es válido (no es duplicado consigo mismo)
+- Se aplica trim() al nombre
+
+---
+
+## ✅ Criterios de aceptación
+
+| Caso | Input | Output esperado |
+|------|-------|-----------------|
+| Actualización válida | PUT /api/users/1 {""nombre"": ""NuevoNombre""} | 200 + UserResponse |
+| Usuario no existe | PUT /api/users/999 | 404 + NOT_FOUND |
+| Nombre en uso por otro | PUT /api/users/1 {""nombre"": ""NombreDeOtro""} | 409 + DUPLICATE_ENTITY |
+| Mismo nombre (sin cambio) | PUT /api/users/1 {""nombre"": ""MismoNombre""} | 200 + UserResponse |
+| Nombre inválido | PUT /api/users/1 {""nombre"": """"} | 400 + VALIDATION_ERROR |
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (UserServiceTest):**
+- shouldUpdateUser_WhenNewNameIsUnique
+- shouldUpdateUser_WhenNameUnchanged
+- shouldThrowNotFound_WhenUserDoesNotExist
+- shouldThrowDuplicate_WhenNameUsedByAnother
+
+**Tests de controller (UserControllerTest):**
+- shouldReturn200_WhenUpdateSuccessful
+- shouldReturn404_WhenUserToUpdateNotFound
+- shouldReturn409_WhenNewNameIsDuplicate
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| Records | JAVA8-A-JAVA17.md - Sección 1 |
+| Pattern matching instanceof | JAVA8-A-JAVA17.md - Sección 3 |
+
+---
+
+## 💡 Pistas
+
+1. Primero buscar el usuario por id (404 si no existe)
+2. Para verificar duplicado: buscar por nombre y comprobar que el id sea diferente
+3. Una forma: findByNombre().filter(u -> !u.getId().equals(id)).isPresent()
+4. Otra forma: crear método en repository existsByNombreAndIdNot(nombre, id)
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-2-soluciones.md → USER-05",2,High,"backend,api,sprint2"
+"USER-06: DELETE /api/users/{id} - Eliminar usuario",Story,"## 🎯 Objetivo
+Implementar endpoint para eliminar un usuario.
+
+---
+
+## 📋 Especificación funcional
+
+| Método | Endpoint | Response |
+|--------|----------|----------|
+| DELETE | /api/users/{id} | 204 No Content |
+| DELETE | /api/users/{id} (no existe) | 404 + ErrorResponse |
+
+**Comportamiento:**
+- Si el usuario existe, eliminarlo y devolver 204 (sin body)
+- Si no existe, devolver 404
+
+**Nota sobre cascade:**
+En sprints posteriores, cuando el usuario tenga tierlists asociadas, se eliminarán en cascada. Por ahora solo se elimina el usuario.
+
+---
+
+## ✅ Criterios de aceptación
+
+- [ ] DELETE /api/users/1 elimina el usuario y devuelve 204
+- [ ] DELETE /api/users/999 devuelve 404 si no existe
+- [ ] Verificar que el usuario realmente se eliminó de la BD
+
+---
+
+## 🧪 Testing requerido
+
+**Tests unitarios (UserServiceTest):**
+- shouldDeleteUser_WhenExists
+- shouldThrowNotFound_WhenUserToDeleteDoesNotExist
+
+**Tests de controller (UserControllerTest):**
+- shouldReturn204_WhenDeleteSuccessful
+- shouldReturn404_WhenUserToDeleteNotFound
+
+**Tests de integración (UserControllerIT):**
+- shouldDeleteUserAndVerifyNotInDatabase
+
+---
+
+## 🔗 Referencias
+
+| Concepto | Documento |
+|----------|-----------|
+| deleteById comportamiento | SPRINGBOOT2-A-SPRINGBOOT3.md - Sección 3 |
+
+---
+
+## 💡 Pistas
+
+1. Verificar existencia antes de eliminar (Spring Boot 3 no lanza excepción si no existe)
+2. ResponseEntity.noContent().build() devuelve 204 sin body
+3. El test de integración debe crear usuario, eliminarlo y verificar que no existe
+
+---
+
+## 📖 Código de referencia
+
+Ver: SPRINT-2-soluciones.md → USER-06",2,Medium,"backend,api,sprint2"
